@@ -6,7 +6,7 @@ from app.config import Config
 from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS
 
 # Helper functions to add text to image
-def create_text_image(text=DEFAULT_TEXT, font_size=DEFAULT_FONT_SIZE, font_color=DEFAULT_FONT_COLOUR, padding=DEFAULT_PADDING, rotation_angle=DEFAULT_ROTATION_ANGLE):
+def create_text_image(text=DEFAULT_TEXT, font_size=DEFAULT_FONT_SIZE, font_color=DEFAULT_FONT_COLOUR, padding=DEFAULT_PADDING, rotation_angle=0):
     font_path = f"{Config.FONT_PATH}/font.ttf"
     font = ImageFont.truetype(font_path, font_size)
 
@@ -16,19 +16,23 @@ def create_text_image(text=DEFAULT_TEXT, font_size=DEFAULT_FONT_SIZE, font_color
     text_bbox = draw.textbbox((0, 0), text, font=font)
     text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
 
-    # Create an image with a transparent background and extra padding
-    text_image = Image.new("RGBA", (text_width + 2 * padding, text_height + 2 * padding), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(text_image)
+    # Create a larger container (canvas) to allow for rotation and centering
+    canvas_size = (text_width + 2 * padding, text_height + 2 * padding)
+    container = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(container)
 
-    # Draw the text with padding
-    draw.text((padding, padding), text, font=font, fill=font_color)
+    # Draw the text centered in the container
+    text_x = (canvas_size[0] - text_width) // 2
+    text_y = (canvas_size[1] - text_height) // 2
+    draw.text((text_x, text_y), text, font=font, fill=font_color)
 
-    # Rotate the image if rotation_angle is specified
+    # Rotate the container if rotation_angle is specified
     if rotation_angle != 0:
-        text_image = text_image.rotate(rotation_angle, expand=True)
+        container = container.rotate(rotation_angle, expand=True)
 
     # Convert to a NumPy array for OpenCV with RGBA to BGRA conversion
-    return cv2.cvtColor(np.array(text_image), cv2.COLOR_RGBA2BGRA)
+    return cv2.cvtColor(np.array(container), cv2.COLOR_RGBA2BGRA)
+
 
 
 # Helper functions to extract and reapply masks from base mockup
@@ -177,13 +181,15 @@ def apply_color(tent_image, config, color):
 
 
 # Main function to apply all logos with configurable parameters
-def apply_all_logos(overlay_data: OverlayRequest, logo_path):
-    output_paths = []
+def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
+    output_images = []
+    
     for tent_type, tent_path in TENT_MOCKUPS.items():
         
         relative_path = f"{Config.BASE_IMAGE_PATH}/{tent_path}"
         tent_image = cv2.imread(relative_path)
-        logo_image = cv2.imread(logo_path, cv2.IMREAD_UNCHANGED)
+        logo_array = np.frombuffer(logo_content, np.uint8)
+        logo_image = cv2.imdecode(logo_array, cv2.IMREAD_UNCHANGED)
         case_config = OVERLAY_CONFIGURATIONS.get(tent_type)
         
         masks = case_config.get("masks")
@@ -272,8 +278,8 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_path):
         if masks is not None:
             tent_image = overlay_masks(tent_image, masks, case_config.get("masks"))
         
-        output_path = f"{Config.OUTPUT_PATH}/output_{tent_type}.jpg"
-        cv2.imwrite(output_path, tent_image)
-        output_paths.append(output_path)
+        is_success, buffer = cv2.imencode(".jpg", tent_image)
+        if is_success:
+            output_images.append((f"output_{tent_type}.jpg", buffer.tobytes()))
         
-    return output_paths
+    return output_images
