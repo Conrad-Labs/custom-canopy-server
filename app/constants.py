@@ -3,7 +3,7 @@ DEFAULT_TEXT = ""
 DEFAULT_FONT_SIZE = 20
 DEFAULT_PADDING = 20
 DEFAULT_ROTATION_ANGLE = 0
-DEFAULT_FONT_COLOUR = (28, 28, 65, 255)
+DEFAULT_FONT_COLOUR = [255, 255, 255]
 DEFAULT_TENT_COLOR = [0, 0, 0]
 BLUE_TENT_COLOR = [255, 233, 211]
 
@@ -16,6 +16,13 @@ TENT_MOCKUPS = {
     "wall-pillar": "tent-mockup-wall-pillar.jpg"
 }
 
+SLOPE_CENTERS = {
+    "top": (500, 258),
+    "right": (726, 477),
+    "bottom": (492, 695),
+    "left": (275, 475)
+}
+
 OVERLAY_CONFIGURATIONS = {
     
     "front": {
@@ -25,8 +32,15 @@ OVERLAY_CONFIGURATIONS = {
             "back-wall": {
                 "width_scale": 0.7,
                 "height_scale": 0.7,
-                "top_y_factor": 0.4,
-                "left_x_factor": 0.5
+                "top_left_x_factor": 0.39,
+                "top_left_y_factor": 0.45,
+                "top_right_x_factor": 0.61,
+                "top_right_y_factor": 0.45,
+                "bottom_left_x_factor": 0.39,
+                "bottom_left_y_factor": 0.7,
+                "bottom_right_x_factor": 0.61,
+                "bottom_right_y_factor": 0.7,
+                "perspective": True
             },
             
             "top-slope": {
@@ -115,10 +129,11 @@ OVERLAY_CONFIGURATIONS = {
                 "top_right_x_factor": 0.75,
                 "top_right_y_factor": 0.45,
                 "bottom_left_x_factor": 0.575,
-                "bottom_left_y_factor": 0.715,
+                "bottom_left_y_factor": 0.615,
                 "bottom_right_x_factor": 0.75,
-                "bottom_right_y_factor": 0.725,
-                "perspective": True
+                "bottom_right_y_factor": 0.625,
+                "perspective": True,
+                "crop_type": "horizontal"
             },
             
             "side-wall-left": {
@@ -153,9 +168,9 @@ OVERLAY_CONFIGURATIONS = {
                 "width_scale": 0.5,
                 "height_scale": 0.5,
                 "top_left_x_factor": 0.41,
-                "top_left_y_factor": 0.115,
+                "top_left_y_factor": 0.135,
                 "top_right_x_factor": 0.51,
-                "top_right_y_factor": 0.105,
+                "top_right_y_factor": 0.125,
                 "bottom_left_x_factor": 0.36,
                 "bottom_left_y_factor": 0.315,
                 "bottom_right_x_factor": 0.46,
@@ -167,9 +182,9 @@ OVERLAY_CONFIGURATIONS = {
                 "width_scale": 0.5,
                 "height_scale": 0.5,
                 "top_left_x_factor": 0.51,
-                "top_left_y_factor": 0.1,
+                "top_left_y_factor": 0.12,
                 "top_right_x_factor": 0.61,
-                "top_right_y_factor": 0.11,
+                "top_right_y_factor": 0.13,
                 "bottom_left_x_factor": 0.575,
                 "bottom_left_y_factor": 0.3,
                 "bottom_right_x_factor": 0.675,
@@ -274,9 +289,9 @@ OVERLAY_CONFIGURATIONS = {
                 "top_right_x_factor": 0.525,
                 "top_right_y_factor": 0.125,
                 "bottom_left_x_factor": 0.405,
-                "bottom_left_y_factor": 0.31,
+                "bottom_left_y_factor": 0.29,
                 "bottom_right_x_factor": 0.505,
-                "bottom_right_y_factor": 0.29,
+                "bottom_right_y_factor": 0.27,
                 "perspective": True
             },
             
@@ -288,9 +303,9 @@ OVERLAY_CONFIGURATIONS = {
                 "top_right_x_factor": 0.595,
                 "top_right_y_factor": 0.17,
                 "bottom_left_x_factor": 0.58,
-                "bottom_left_y_factor": 0.345,
+                "bottom_left_y_factor": 0.33,
                 "bottom_right_x_factor": 0.67,
-                "bottom_right_y_factor": 0.3,
+                "bottom_right_y_factor": 0.25,
                 "perspective": True
             },
             
@@ -465,9 +480,9 @@ OVERLAY_CONFIGURATIONS = {
                 "width_scale": 0.5,
                 "height_scale": 0.5,
                 "top_left_x_factor": 0.43,
-                "top_left_y_factor": 0.18,
+                "top_left_y_factor": 0.215,
                 "top_right_x_factor": 0.53,
-                "top_right_y_factor": 0.16,
+                "top_right_y_factor": 0.195,
                 "bottom_left_x_factor": 0.375,
                 "bottom_left_y_factor": 0.305,
                 "bottom_right_x_factor": 0.475,
@@ -479,9 +494,9 @@ OVERLAY_CONFIGURATIONS = {
                 "width_scale": 0.5,
                 "height_scale": 0.5,
                 "top_left_x_factor": 0.525,
-                "top_left_y_factor": 0.16,
+                "top_left_y_factor": 0.195,
                 "top_right_x_factor": 0.61,
-                "top_right_y_factor": 0.18,
+                "top_right_y_factor": 0.215,
                 "bottom_left_x_factor": 0.59,
                 "bottom_left_y_factor": 0.3,
                 "bottom_right_x_factor": 0.675,
@@ -539,32 +554,32 @@ OVERLAY_CONFIGURATIONS = {
         "logos": {
             
             "slope-bottom": {
-                "width_scale": 0.15,
-                "height_scale": 0.15,
-                "top_y_factor": 0.575,
+                "width_scale": 0.2,
+                "height_scale": 0.2,
+                "top_y_factor": 0.585,
                 "left_x_factor": 0.5
             },
             
             "slope-left": {
-                "width_scale": 0.15,
-                "height_scale": 0.15,
-                "top_y_factor": 0.37,
+                "width_scale": 0.2,
+                "height_scale": 0.2,
+                "top_y_factor": 0.41,
                 "left_x_factor": 0.28,
                 "rotation_angle": 270
             },
             
             "slope-top": {
-                "width_scale": 0.15,
-                "height_scale": 0.15,
-                "top_y_factor": 0.15,
+                "width_scale": 0.2,
+                "height_scale": 0.2,
+                "top_y_factor": 0.2,
                 "left_x_factor": 0.5,
                 "rotation_angle": 180
             },
             
             "slope-right": {
-                "width_scale": 0.15,
-                "height_scale": 0.15,
-                "top_y_factor": 0.37,
+                "width_scale": 0.2,
+                "height_scale": 0.2,
+                "top_y_factor": 0.41,
                 "left_x_factor": 0.73,
                 "rotation_angle": 90
             },
@@ -579,8 +594,15 @@ OVERLAY_CONFIGURATIONS = {
             "text-left": {
                 "width_scale": 0.25,
                 "height_scale": 0.25,
-                "top_y_factor": 0.25,
-                "left_x_factor": 0.13,
+                "top_left_x_factor": 0.11,
+                "top_left_y_factor": 0.25,
+                "top_right_x_factor": 0.15,
+                "top_right_y_factor": 0.25,
+                "bottom_left_x_factor": 0.11,
+                "bottom_left_y_factor": 0.72,
+                "bottom_right_x_factor": 0.15,
+                "bottom_right_y_factor": 0.72,
+                "perspective": True,
                 "rotation_angle": 270
             },
             
@@ -595,8 +617,15 @@ OVERLAY_CONFIGURATIONS = {
             "text-right": {
                 "width_scale": 0.25,
                 "height_scale": 0.25,
-                "top_y_factor": 0.25,
-                "left_x_factor": 0.87,
+                "top_left_x_factor": 0.85,
+                "top_left_y_factor": 0.25,
+                "top_right_x_factor": 0.89,
+                "top_right_y_factor": 0.25,
+                "bottom_left_x_factor": 0.85,
+                "bottom_left_y_factor": 0.72,
+                "bottom_right_x_factor": 0.89,
+                "bottom_right_y_factor": 0.72,
+                "perspective": True,
                 "rotation_angle": 90
             },
                 

@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from app.config import Config
 from app.schema import OverlayRequest
 from app.services.image_processor import apply_all_logos
-from app.constants import DEFAULT_TENT_COLOR, DEFAULT_TEXT
+from app.constants import DEFAULT_TENT_COLOR, DEFAULT_TEXT, DEFAULT_FONT_COLOUR
 
 router = APIRouter()
 
@@ -16,6 +16,7 @@ router = APIRouter()
 async def create_mockups(
     color: str = Form(f'"{DEFAULT_TENT_COLOR}"'),
     text: str = Form(DEFAULT_TEXT),
+    text_color: str = Form(f'"{DEFAULT_FONT_COLOUR}"'),
     logo: UploadFile = File(...),
 ):
     """
@@ -25,9 +26,13 @@ async def create_mockups(
         color = json.loads(color)
         if len(color) != 3 or not all(isinstance(c, int) for c in color):
             raise ValueError("Color must be a list of three integers representing B, G, and R values.")
+        
+        font_color = json.loads(text_color)
+        if len(font_color) != 3 or not all(isinstance(c, int) for c in font_color):
+            raise ValueError("Font color must be a list of three integers representing B, G, and R values.")
 
         logo_content = await logo.read()
-        overlay_data = OverlayRequest(color=color, text=text)
+        overlay_data = OverlayRequest(color=color, text=text, font_color=font_color)
         output_files = apply_all_logos(overlay_data, logo_content)
 
         # Create a zip file in memory

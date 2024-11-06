@@ -3,12 +3,15 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from app.schema import OverlayRequest
 from app.config import Config
-from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS
+from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS, SLOPE_CENTERS
 
 # Helper functions to add text to image
-def create_text_image(text=DEFAULT_TEXT, font_size=DEFAULT_FONT_SIZE, font_color=DEFAULT_FONT_COLOUR, padding=DEFAULT_PADDING, rotation_angle=0):
+def create_text_image(text="Sample Text", font_size=DEFAULT_FONT_SIZE, font_color=DEFAULT_FONT_COLOUR, padding=DEFAULT_PADDING, rotation_angle=0):
     font_path = f"{Config.FONT_PATH}/font.ttf"
     font = ImageFont.truetype(font_path, font_size)
+
+    # Convert BGR to RGBA
+    font_color_rgba = (font_color[2], font_color[1], font_color[0], 255)  # Add full opacity
 
     # Calculate the size of the text using a dummy image
     dummy_img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
@@ -24,7 +27,7 @@ def create_text_image(text=DEFAULT_TEXT, font_size=DEFAULT_FONT_SIZE, font_color
     # Draw the text centered in the container
     text_x = (canvas_size[0] - text_width) // 2
     text_y = (canvas_size[1] - text_height) // 2
-    draw.text((text_x, text_y), text, font=font, fill=font_color)
+    draw.text((text_x, text_y), text, font=font, fill=font_color_rgba)
 
     # Rotate the container if rotation_angle is specified
     if rotation_angle != 0:
@@ -179,6 +182,32 @@ def apply_color(tent_image, config, color):
     
     return colored_image
 
+def calculate_perspective_factors(center_x, center_y, logo_width, logo_height, image_width, image_height):
+    """
+    Calculate the four corner factors for a logo's perspective transformation based on its center.
+    """
+    # Calculate the absolute coordinates of each corner of the logo
+    top_left_x = center_x - (logo_width / 2)
+    top_left_y = center_y - (logo_height / 2)
+    top_right_x = center_x + (logo_width / 2)
+    top_right_y = center_y - (logo_height / 2)
+    bottom_left_x = center_x - (logo_width / 2)
+    bottom_left_y = center_y + (logo_height / 2)
+    bottom_right_x = center_x + (logo_width / 2)
+    bottom_right_y = center_y + (logo_height / 2)
+
+    # Convert to factors relative to the image size
+    return {
+        "top_left_x_factor": top_left_x / image_width,
+        "top_left_y_factor": top_left_y / image_height,
+        "top_right_x_factor": top_right_x / image_width,
+        "top_right_y_factor": top_right_y / image_height,
+        "bottom_left_x_factor": bottom_left_x / image_width,
+        "bottom_left_y_factor": bottom_left_y / image_height,
+        "bottom_right_x_factor": bottom_right_x / image_width,
+        "bottom_right_y_factor": bottom_right_y / image_height,
+    }
+
 
 # Main function to apply all logos with configurable parameters
 def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
@@ -210,7 +239,7 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
                     text = DEFAULT_TEXT
                     if overlay_data.text:
                         text = overlay_data.text
-                    text_img = create_text_image(text=text, font_size=100, rotation_angle=rotation_angle)
+                    text_img = create_text_image(text=text, font_size=100, rotation_angle=rotation_angle, font_color=overlay_data.font_color)
                     bgr = text_img[:, :, :3]
                     alpha = text_img[:, :, 3]
                     rotation_angle = 0
@@ -222,58 +251,93 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
                 width_scale = value.get('width_scale', 0.5)
                 height_scale = value.get('height_scale', 0.5)
                 
-                if "perspective" in value and "crop_type" in value:
-                    tent_image = apply_image_overlay(
-                        tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
-                        width_scale=width_scale,
-                        height_scale=height_scale,
-                        top_left_y_factor=value.get('top_left_y_factor'),
-                        top_left_x_factor=value.get('top_left_x_factor'),
-                        top_right_y_factor=value.get('top_right_y_factor'),
-                        top_right_x_factor=value.get('top_right_x_factor'),
-                        bottom_left_y_factor=value.get('bottom_left_y_factor'),
-                        bottom_left_x_factor=value.get('bottom_left_x_factor'),
-                        bottom_right_y_factor=value.get('bottom_right_y_factor'),
-                        bottom_right_x_factor=value.get('bottom_right_x_factor'),
-                        perspective=True,
-                        crop_type=value.get("crop_type"),
-                        rotation_angle=rotation_angle
-                    )
-                elif "perspective" in value and "crop_type" not in value:
-                    tent_image = apply_image_overlay(
-                        tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
-                        width_scale=width_scale,
-                        height_scale=height_scale,
-                        top_left_y_factor=value.get('top_left_y_factor'),
-                        top_left_x_factor=value.get('top_left_x_factor'),
-                        top_right_y_factor=value.get('top_right_y_factor'),
-                        top_right_x_factor=value.get('top_right_x_factor'),
-                        bottom_left_y_factor=value.get('bottom_left_y_factor'),
-                        bottom_left_x_factor=value.get('bottom_left_x_factor'),
-                        bottom_right_y_factor=value.get('bottom_right_y_factor'),
-                        bottom_right_x_factor=value.get('bottom_right_x_factor'),
-                        perspective=True,
-                        rotation_angle=rotation_angle
-                    )
-                elif "perspective" not in value and "crop_type" in value:
-                    tent_image = apply_image_overlay(
-                        tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
-                        width_scale=width_scale,
-                        height_scale=height_scale,
-                        top_y_factor=value.get('top_y_factor'),
-                        left_x_factor=value.get('left_x_factor'),
-                        crop_type=value.get("crop_type"),
-                        rotation_angle=rotation_angle
-                    )
-                elif "perspective" not in value and "crop_type" not in value:
-                    tent_image = apply_image_overlay(
-                        tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
-                        width_scale=width_scale,
-                        height_scale=height_scale,
-                        top_y_factor=value.get('top_y_factor'),
-                        left_x_factor=value.get('left_x_factor'),
-                        rotation_angle=rotation_angle
-                    )
+                # Place logo at the center of each slope for top view
+                if tent_type == "top-view" and "text" not in key:
+                    for slope, (center_x, center_y) in SLOPE_CENTERS.items():
+                        # Convert center coordinates to factors based on image dimensions
+                        if slope in key:
+                            overlay_bgr_resized, overlay_alpha_resized = resize_logo(
+                                logo_image[:, :, :3], logo_image[:, :, 3], width_scale, height_scale
+                            )
+
+                            # Get logo dimensions
+                            logo_height, logo_width = overlay_bgr_resized.shape[:2]
+
+                            # Calculate perspective factors based on the center coordinates and logo dimensions
+                            factors = calculate_perspective_factors(
+                                center_x, center_y, logo_width, logo_height,
+                                tent_image.shape[1], tent_image.shape[0]
+                            )
+
+                            # Overlay the logo onto the tent image with perspective transformation
+                            tent_image = apply_image_overlay(
+                                tent_image, overlay_bgr=overlay_bgr_resized, overlay_alpha=overlay_alpha_resized,
+                                width_scale=1, height_scale=1,  # Already scaled in resize_logo
+                                top_left_x_factor=factors["top_left_x_factor"],
+                                top_left_y_factor=factors["top_left_y_factor"],
+                                top_right_x_factor=factors["top_right_x_factor"],
+                                top_right_y_factor=factors["top_right_y_factor"],
+                                bottom_left_x_factor=factors["bottom_left_x_factor"],
+                                bottom_left_y_factor=factors["bottom_left_y_factor"],
+                                bottom_right_x_factor=factors["bottom_right_x_factor"],
+                                bottom_right_y_factor=factors["bottom_right_y_factor"],
+                                perspective=True,
+                                rotation_angle=rotation_angle
+                            )
+                else:
+                    # Existing logic for other tent types
+                    if "perspective" in value and "crop_type" in value:
+                        tent_image = apply_image_overlay(
+                            tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
+                            width_scale=width_scale,
+                            height_scale=height_scale,
+                            top_left_y_factor=value.get('top_left_y_factor'),
+                            top_left_x_factor=value.get('top_left_x_factor'),
+                            top_right_y_factor=value.get('top_right_y_factor'),
+                            top_right_x_factor=value.get('top_right_x_factor'),
+                            bottom_left_y_factor=value.get('bottom_left_y_factor'),
+                            bottom_left_x_factor=value.get('bottom_left_x_factor'),
+                            bottom_right_y_factor=value.get('bottom_right_y_factor'),
+                            bottom_right_x_factor=value.get('bottom_right_x_factor'),
+                            perspective=True,
+                            crop_type=value.get("crop_type"),
+                            rotation_angle=rotation_angle
+                        )
+                    elif "perspective" in value and "crop_type" not in value:
+                        tent_image = apply_image_overlay(
+                            tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
+                            width_scale=width_scale,
+                            height_scale=height_scale,
+                            top_left_y_factor=value.get('top_left_y_factor'),
+                            top_left_x_factor=value.get('top_left_x_factor'),
+                            top_right_y_factor=value.get('top_right_y_factor'),
+                            top_right_x_factor=value.get('top_right_x_factor'),
+                            bottom_left_y_factor=value.get('bottom_left_y_factor'),
+                            bottom_left_x_factor=value.get('bottom_left_x_factor'),
+                            bottom_right_y_factor=value.get('bottom_right_y_factor'),
+                            bottom_right_x_factor=value.get('bottom_right_x_factor'),
+                            perspective=True,
+                            rotation_angle=rotation_angle
+                        )
+                    elif "perspective" not in value and "crop_type" in value:
+                        tent_image = apply_image_overlay(
+                            tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
+                            width_scale=width_scale,
+                            height_scale=height_scale,
+                            top_y_factor=value.get('top_y_factor'),
+                            left_x_factor=value.get('left_x_factor'),
+                            crop_type=value.get("crop_type"),
+                            rotation_angle=rotation_angle
+                        )
+                    elif "perspective" not in value and "crop_type" not in value:
+                        tent_image = apply_image_overlay(
+                            tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
+                            width_scale=width_scale,
+                            height_scale=height_scale,
+                            top_y_factor=value.get('top_y_factor'),
+                            left_x_factor=value.get('left_x_factor'),
+                            rotation_angle=rotation_angle
+                        )
         
         if masks is not None:
             tent_image = overlay_masks(tent_image, masks, case_config.get("masks"))
