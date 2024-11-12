@@ -5,21 +5,28 @@ from app.schema import OverlayRequest
 from app.config import Config
 from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS, SLOPE_CENTERS
 
-# Helper functions to add text to image
-def create_text_image(text=DEFAULT_TEXT, font_size=DEFAULT_FONT_SIZE, font_color=DEFAULT_FONT_COLOUR, padding=DEFAULT_PADDING, rotation_angle=0):
-    font_path = f"{Config.FONT_PATH}/font.ttf"
-    font = ImageFont.truetype(font_path, font_size)
+def create_text_image(
+    text=DEFAULT_TEXT,
+    font_size=DEFAULT_FONT_SIZE,
+    font_color=DEFAULT_FONT_COLOUR,
+    padding=DEFAULT_PADDING,
+    rotation_angle=DEFAULT_ROTATION_ANGLE,
+    # upscale_factor=4
+):
+    font_path = f"{Config.FONT_PATH}/arial.ttf"
+    font = ImageFont.truetype(font_path, font_size)  # Upscale font size
 
     # Convert BGR to RGBA
-    font_color_rgba = (font_color[2], font_color[1], font_color[0], 255)  # Add full opacity
+    font_color_rgba = (font_color[2], font_color[1], font_color[0], 255)
 
     # Calculate the size of the text using a dummy image
     dummy_img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
     draw = ImageDraw.Draw(dummy_img)
     text_bbox = draw.textbbox((0, 0), text, font=font)
-    text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
+    text_width = (text_bbox[2] - text_bbox[0])
+    text_height = (text_bbox[3] - text_bbox[1])
 
-    # Create a larger container (canvas) to allow for rotation and centering
+    # Create a larger container (canvas) for high-resolution rendering
     canvas_size = (text_width + 2 * padding, text_height + 2 * padding)
     container = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(container)
@@ -33,8 +40,14 @@ def create_text_image(text=DEFAULT_TEXT, font_size=DEFAULT_FONT_SIZE, font_color
     if rotation_angle != 0:
         container = container.rotate(rotation_angle, expand=True)
 
+    # Downscale the image to normal size for anti-aliasing
+    downscaled_container = container.resize(
+        (canvas_size[0], canvas_size[1]),
+        Image.LANCZOS
+    )
+
     # Convert to a NumPy array for OpenCV with RGBA to BGRA conversion
-    return cv2.cvtColor(np.array(container), cv2.COLOR_RGBA2BGRA)
+    return cv2.cvtColor(np.array(downscaled_container), cv2.COLOR_RGBA2BGRA)
 
 
 # Helper functions to extract and reapply masks from base mockup
