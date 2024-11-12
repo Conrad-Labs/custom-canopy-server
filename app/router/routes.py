@@ -15,7 +15,7 @@ router = APIRouter()
 @router.post("/create-mockups/", tags=["Mockup Creation"])
 async def create_mockups(
     color: str = Form(f'"{DEFAULT_TENT_COLOR}"'),
-    text: str = Form(DEFAULT_TEXT),
+    text: str = Form(f'"{DEFAULT_TEXT}"'),
     text_color: str = Form(f'"{DEFAULT_FONT_COLOUR}"'),
     logo: UploadFile = File(...),
 ):

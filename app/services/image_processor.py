@@ -6,7 +6,7 @@ from app.config import Config
 from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS, SLOPE_CENTERS
 
 # Helper functions to add text to image
-def create_text_image(text="Sample Text", font_size=DEFAULT_FONT_SIZE, font_color=DEFAULT_FONT_COLOUR, padding=DEFAULT_PADDING, rotation_angle=0):
+def create_text_image(text=DEFAULT_TEXT, font_size=DEFAULT_FONT_SIZE, font_color=DEFAULT_FONT_COLOUR, padding=DEFAULT_PADDING, rotation_angle=0):
     font_path = f"{Config.FONT_PATH}/font.ttf"
     font = ImageFont.truetype(font_path, font_size)
 
@@ -37,179 +37,131 @@ def create_text_image(text="Sample Text", font_size=DEFAULT_FONT_SIZE, font_colo
     return cv2.cvtColor(np.array(container), cv2.COLOR_RGBA2BGRA)
 
 
-
 # Helper functions to extract and reapply masks from base mockup
-def extract_masks(tent_image, mask_data):
-    extracted = {}
-    for key, (x1, y1, x2, y2) in mask_data.items():
-        extracted[key] = tent_image[y1:y2, x1:x2].copy()
-    
+def extract_masks(tent_image, coordinates):
+    """
+    Extracts a mask from the tent image.
+    Supports both bounding box (x1, y1, x2, y2) and quadrilateral coordinates.
+    """
+    if len(coordinates) == 2:
+        (x1, y1), (x2, y2) = coordinates
+        extracted = tent_image[y1:y2, x1:x2].copy()
+    elif len(coordinates) == 4:
+        src_points = np.array(coordinates, dtype="float32")
+        x_min = int(min([pt[0] for pt in coordinates]))
+        y_min = int(min([pt[1] for pt in coordinates]))
+        x_max = int(max([pt[0] for pt in coordinates]))
+        y_max = int(max([pt[1] for pt in coordinates]))
+
+        dst_points = np.array([[0, 0], [x_max - x_min, 0], [x_max - x_min, y_max - y_min], [0, y_max - y_min]], dtype="float32")
+
+        M = cv2.getPerspectiveTransform(src_points, dst_points)
+        extracted = cv2.warpPerspective(tent_image, M, (x_max - x_min, y_max - y_min))
+    else:
+        raise ValueError("Invalid coordinates provided for mask extraction. Must be 2 points (x1, y1, x2, y2) or 4 points for a quadrilateral.")
+
     return extracted
 
-def overlay_masks(tent_image, extracted_masks, mask_data):
-    for key, (x1, y1, x2, y2) in mask_data.items():
-        if key in extracted_masks:
-            tent_image[y1:y2, x1:x2] = extracted_masks[key]
+def overlay_masks(tent_image, extracted_mask, coordinates):
+    """
+    Overlays the extracted mask onto the tent image.
+    Supports both bounding box (x1, y1, x2, y2) and quadrilateral coordinates.
+    """
+    if len(coordinates) == 2:
+        (x1, y1), (x2, y2) = coordinates
+        tent_image[y1:y2, x1:x2] = extracted_mask
+    elif len(coordinates) == 4:
+        src_points = np.array([[0, 0], [extracted_mask.shape[1], 0], 
+                               [extracted_mask.shape[1], extracted_mask.shape[0]], [0, extracted_mask.shape[0]]], dtype="float32")
+        dst_points = np.array(coordinates, dtype="float32")
+
+        M = cv2.getPerspectiveTransform(src_points, dst_points)
+        warped_mask = cv2.warpPerspective(extracted_mask, M, (tent_image.shape[1], tent_image.shape[0]))
+
+        mask_gray = cv2.cvtColor(warped_mask, cv2.COLOR_BGR2GRAY)
+        _, mask = cv2.threshold(mask_gray, 1, 255, cv2.THRESH_BINARY)
+        mask_inv = cv2.bitwise_not(mask)
+
+        tent_bg = cv2.bitwise_and(tent_image, tent_image, mask=mask_inv)
+        mask_fg = cv2.bitwise_and(warped_mask, warped_mask, mask=mask)
+        tent_image = cv2.add(tent_bg, mask_fg)
+    else:
+        raise ValueError("Invalid coordinates provided for overlay. Must be 2 points (x1, y1, x2, y2) or 4 points for a quadrilateral.")
+
     return tent_image
 
 
-
 # Helper function to apply logo to mockup
-def resize_logo(logo_bgr, logo_alpha, width_scale, height_scale, crop_type=None):
-    logo_height, logo_width, _ = logo_bgr.shape
-    logo_resized_width = int(logo_width * width_scale)
-    logo_resized_height = int(logo_height * height_scale)
+def scale_quadrilateral(coordinates, scale):
+    """Scales a quadrilateral around its centroid by the given scale factor."""
+    centroid_x = int(np.mean([p[0] for p in coordinates]))
+    centroid_y = int(np.mean([p[1] for p in coordinates]))
 
-    logo_bgr_resized = cv2.resize(
-        logo_bgr, (logo_resized_width, logo_resized_height), interpolation=cv2.INTER_CUBIC)
-    logo_alpha_resized = cv2.resize(
-        logo_alpha, (logo_resized_width, logo_resized_height), interpolation=cv2.INTER_CUBIC)
+    scaled_coordinates = []
+    for (x, y) in coordinates:
+        scaled_x = int(centroid_x + scale * (x - centroid_x))
+        scaled_y = int(centroid_y + scale * (y - centroid_y))
+        scaled_coordinates.append((scaled_x, scaled_y))
 
-    if crop_type == 'vertical':
-        # Crop logo to half vertically
-        logo_bgr_resized = logo_bgr_resized[:, :logo_resized_width // 2]
-        logo_alpha_resized = logo_alpha_resized[:, :logo_resized_width // 2]
-    elif crop_type == 'horizontal':
-        logo_bgr_resized = logo_bgr_resized[:logo_resized_height // 2, :]
-        logo_alpha_resized = logo_alpha_resized[:logo_resized_height // 2, :]
+    return scaled_coordinates
 
-    return logo_bgr_resized, logo_alpha_resized
-
-def apply_perspective(logo_bgr_resized, logo_alpha_resized, tent_image, target_points):
-    original_points = np.float32([[0, 0], [logo_bgr_resized.shape[1], 0], [
-                                 0, logo_bgr_resized.shape[0]], [logo_bgr_resized.shape[1], logo_bgr_resized.shape[0]]])
-
-    # Apply the perspective warp to the logo
-    perspective_matrix = cv2.getPerspectiveTransform(
-        original_points, target_points)
-    warped_logo = cv2.warpPerspective(logo_bgr_resized, perspective_matrix, (
-        tent_image.shape[1], tent_image.shape[0]), flags=cv2.INTER_CUBIC)
-    warped_logo_alpha = cv2.warpPerspective(logo_alpha_resized, perspective_matrix, (
-        tent_image.shape[1], tent_image.shape[0]), flags=cv2.INTER_CUBIC)
-
-    # Create a mask for the warped logo
-    logo_fg = cv2.bitwise_and(warped_logo, warped_logo, mask=warped_logo_alpha)
-    mask_inv = cv2.bitwise_not(warped_logo_alpha)
-
-    # Extract the region of the tent where the logo will be placed (background)
-    tent_roi = cv2.bitwise_and(tent_image, tent_image, mask=mask_inv)
-
-    # Combine the warped logo with the tent
-    return cv2.add(tent_roi, logo_fg)
-
-def apply_image_overlay(tent_image, overlay_bgr, overlay_alpha, width_scale, height_scale,  
-                        top_left_y_factor=0, top_left_x_factor=0, top_right_y_factor=0, 
-                        top_right_x_factor=0, bottom_left_y_factor=0, bottom_left_x_factor=0, 
-                        bottom_right_y_factor=0, bottom_right_x_factor=0, top_y_factor=0.4,  
-                        left_x_factor=0.5, crop_type=None, perspective=False, rotation_angle=0):
-    
-    # Resize the overlay (logo or text) image
-    overlay_bgr_resized, overlay_alpha_resized = resize_logo(overlay_bgr, overlay_alpha, width_scale, height_scale, crop_type)
-    
-    # Ensure that overlay_alpha_resized is single-channel
-    if len(overlay_alpha_resized.shape) > 2 and overlay_alpha_resized.shape[2] > 1:
-        overlay_alpha_resized = overlay_alpha_resized[:, :, 0]
-    
-    # Rotate the overlay image if rotation_angle is specified
-    if rotation_angle != 0:
-        (h, w) = overlay_bgr_resized.shape[:2]
-        center = (w // 2, h // 2)
-        rotation_matrix = cv2.getRotationMatrix2D(center, rotation_angle, scale=1.0)
-        
-        # Rotate both BGR and alpha channels
-        overlay_bgr_resized = cv2.warpAffine(overlay_bgr_resized, rotation_matrix, (w, h))
-        overlay_alpha_resized = cv2.warpAffine(overlay_alpha_resized, rotation_matrix, (w, h))
-    
-    # Convert overlay_alpha_resized to uint8 to ensure it works as a mask
-    overlay_alpha_resized = overlay_alpha_resized.astype("uint8")
-    
-    # Calculate placement positions based on left_x_factor and top_y_factor
-    tent_height, tent_width, _ = tent_image.shape
-    top_left_x = int(tent_width * left_x_factor) - overlay_bgr_resized.shape[1] // 2
-    top_y = int(tent_height * top_y_factor)
-
-    # Adjust top_left_x and top_y if they exceed the tent image bounds
-    if top_left_x < 0:
-        top_left_x = 0
-    if top_y < 0:
-        top_y = 0
-    if top_left_x + overlay_bgr_resized.shape[1] > tent_width:
-        overlay_bgr_resized = overlay_bgr_resized[:, :tent_width - top_left_x]
-        overlay_alpha_resized = overlay_alpha_resized[:, :tent_width - top_left_x]
-    if top_y + overlay_bgr_resized.shape[0] > tent_height:
-        overlay_bgr_resized = overlay_bgr_resized[:tent_height - top_y, :]
-        overlay_alpha_resized = overlay_alpha_resized[:tent_height - top_y, :]
-
-    if not perspective:
-        # Directly overlay the image without perspective transformation
-        roi = tent_image[top_y:top_y + overlay_bgr_resized.shape[0],
-                         top_left_x:top_left_x + overlay_bgr_resized.shape[1]]
-
-        # Create foreground and background regions
-        overlay_fg = cv2.bitwise_and(overlay_bgr_resized, overlay_bgr_resized, mask=overlay_alpha_resized)
-        overlay_bg = cv2.bitwise_and(roi, roi, mask=cv2.bitwise_not(overlay_alpha_resized))
-
-        # Blend the foreground and background, then overlay
-        tent_image[top_y:top_y + overlay_bgr_resized.shape[0], 
-                   top_left_x:top_left_x + overlay_bgr_resized.shape[1]] = cv2.add(overlay_bg, overlay_fg)
-
-        return tent_image
-
-    # If perspective is needed, set target points
-    target_points = np.float32([
-        [int(tent_image.shape[1] * top_left_x_factor), int(tent_image.shape[0] * top_left_y_factor)],  # Top-left
-        [int(tent_image.shape[1] * top_right_x_factor), int(tent_image.shape[0] * top_right_y_factor)],  # Top-right
-        [int(tent_image.shape[1] * bottom_left_x_factor), int(tent_image.shape[0] * bottom_left_y_factor)],  # Bottom-left
-        [int(tent_image.shape[1] * bottom_right_x_factor), int(tent_image.shape[0] * bottom_right_y_factor)]  # Bottom-right
-    ])
-
-    # Apply perspective transformation and overlay
-    return apply_perspective(overlay_bgr_resized, overlay_alpha_resized, tent_image, target_points)
-
-def apply_color(tent_image, config, color):
-    # Create a mask for the regions to be colored
+def apply_color(tent_image, config, color=[0, 0, 0]):
     mask = np.zeros(tent_image.shape[:2], dtype=np.uint8)
     
-    for key, points in config.items():
+    for _, points in config.items():
         cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
             
     mask_expanded = cv2.merge([mask] * 3)
     color_overlay = np.full(tent_image.shape, color, dtype=np.uint8)
 
-    # Directly apply the color to the masked regions without blending
     colored_image = tent_image.copy()
     colored_image[mask_expanded == 255] = color_overlay[mask_expanded == 255]
     
     return colored_image
 
-def calculate_perspective_factors(center_x, center_y, logo_width, logo_height, image_width, image_height):
-    """
-    Calculate the four corner factors for a logo's perspective transformation based on its center.
-    """
-    # Calculate the absolute coordinates of each corner of the logo
-    top_left_x = center_x - (logo_width / 2)
-    top_left_y = center_y - (logo_height / 2)
-    top_right_x = center_x + (logo_width / 2)
-    top_right_y = center_y - (logo_height / 2)
-    bottom_left_x = center_x - (logo_width / 2)
-    bottom_left_y = center_y + (logo_height / 2)
-    bottom_right_x = center_x + (logo_width / 2)
-    bottom_right_y = center_y + (logo_height / 2)
+def overlay_logo(tent_image, logo_img, coordinates, scale=0.4):
+    """ Overlays a perspective-transformed logo within a scaled quadrilateral region on the tent image. """
+    scaled_coordinates = scale_quadrilateral(coordinates, scale)
 
-    # Convert to factors relative to the image size
-    return {
-        "top_left_x_factor": top_left_x / image_width,
-        "top_left_y_factor": top_left_y / image_height,
-        "top_right_x_factor": top_right_x / image_width,
-        "top_right_y_factor": top_right_y / image_height,
-        "bottom_left_x_factor": bottom_left_x / image_width,
-        "bottom_left_y_factor": bottom_left_y / image_height,
-        "bottom_right_x_factor": bottom_right_x / image_width,
-        "bottom_right_y_factor": bottom_right_y / image_height,
-    }
+    src_points = np.array([[0, 0], [logo_img.shape[1], 0], 
+                           [logo_img.shape[1], logo_img.shape[0]], [0, logo_img.shape[0]]], dtype="float32")
+
+    dst_points = np.array(scaled_coordinates, dtype="float32")
+
+    if logo_img.shape[2] == 4:
+        logo_img = cv2.cvtColor(logo_img, cv2.COLOR_BGRA2BGR)
+
+    M = cv2.getPerspectiveTransform(src_points, dst_points)
+    warped_logo = cv2.warpPerspective(logo_img, M, (tent_image.shape[1], tent_image.shape[0]))
+
+    if warped_logo.shape[2] == 4: 
+        warped_logo = cv2.cvtColor(warped_logo, cv2.COLOR_BGRA2BGR)
+
+    warped_gray = cv2.cvtColor(warped_logo, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(warped_gray, 1, 255, cv2.THRESH_BINARY)
+    mask_inv = cv2.bitwise_not(mask)
+
+    x_min = max(0, min([pt[0] for pt in scaled_coordinates]))
+    y_min = max(0, min([pt[1] for pt in scaled_coordinates]))
+    x_max = min(tent_image.shape[1], max([pt[0] for pt in scaled_coordinates]))
+    y_max = min(tent_image.shape[0], max([pt[1] for pt in scaled_coordinates]))
+
+    roi = tent_image[y_min:y_max, x_min:x_max]
+
+    warped_logo_cropped = warped_logo[y_min:y_max, x_min:x_max]
+    mask_cropped = mask[y_min:y_max, x_min:x_max]
+    mask_inv_cropped = mask_inv[y_min:y_max, x_min:x_max]
+
+    tent_bg = cv2.bitwise_and(roi, roi, mask=mask_inv_cropped)
+    logo_fg = cv2.bitwise_and(warped_logo_cropped, warped_logo_cropped, mask=mask_cropped)
+
+    dst = cv2.add(tent_bg, logo_fg)
+
+    tent_image[y_min:y_max, x_min:x_max] = dst
+
+    return tent_image
 
 
-# Main function to apply all logos with configurable parameters
 def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
     output_images = []
     
@@ -220,130 +172,41 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
         logo_array = np.frombuffer(logo_content, np.uint8)
         logo_image = cv2.imdecode(logo_array, cv2.IMREAD_UNCHANGED)
         case_config = OVERLAY_CONFIGURATIONS.get(tent_type)
-        
+        color_coordinates = case_config.get("color-coordinates")
+        logos = case_config.get("logos")
         masks = case_config.get("masks")
-        if masks is not None:
-            masks = extract_masks(tent_image, masks)
-            
-        if case_config.get("coordinates") is not None:
-            color = DEFAULT_TENT_COLOR
-            if overlay_data.color:
-                color = overlay_data.color
-            tent_image = apply_color(tent_image, case_config.get("coordinates"), color)
         
-        logos = case_config.get("logos")  
-        if logos is not None:
-            for key, value in logos.items():
-                if "text" in key:
-                    rotation_angle = value.get("rotation_angle", DEFAULT_ROTATION_ANGLE)
-                    text = DEFAULT_TEXT
-                    if overlay_data.text:
-                        text = overlay_data.text
-                    text_img = create_text_image(text=text, font_size=100, rotation_angle=rotation_angle, font_color=overlay_data.font_color)
-                    bgr = text_img[:, :, :3]
-                    alpha = text_img[:, :, 3]
-                    rotation_angle = 0
-                else:
-                    bgr = logo_image[:, :, :3]
-                    alpha = logo_image[:, :, 3]
-                    rotation_angle = value.get("rotation_angle", DEFAULT_ROTATION_ANGLE) 
-                    
-                width_scale = value.get('width_scale', 0.5)
-                height_scale = value.get('height_scale', 0.5)
+        extracted_masks = {}
+        
+        if (masks is not None) and (len(masks) > 0):
+            for mask_key, mask_coordinates in masks.items():
+                extracted_masks[mask_key] = extract_masks(tent_image, mask_coordinates)
                 
-                # Place logo at the center of each slope for top view
-                if tent_type == "top-view" and "text" not in key:
-                    for slope, (center_x, center_y) in SLOPE_CENTERS.items():
-                        # Convert center coordinates to factors based on image dimensions
-                        if slope in key:
-                            overlay_bgr_resized, overlay_alpha_resized = resize_logo(
-                                logo_image[:, :, :3], logo_image[:, :, 3], width_scale, height_scale
-                            )
-
-                            # Get logo dimensions
-                            logo_height, logo_width = overlay_bgr_resized.shape[:2]
-
-                            # Calculate perspective factors based on the center coordinates and logo dimensions
-                            factors = calculate_perspective_factors(
-                                center_x, center_y, logo_width, logo_height,
-                                tent_image.shape[1], tent_image.shape[0]
-                            )
-
-                            # Overlay the logo onto the tent image with perspective transformation
-                            tent_image = apply_image_overlay(
-                                tent_image, overlay_bgr=overlay_bgr_resized, overlay_alpha=overlay_alpha_resized,
-                                width_scale=1, height_scale=1,  # Already scaled in resize_logo
-                                top_left_x_factor=factors["top_left_x_factor"],
-                                top_left_y_factor=factors["top_left_y_factor"],
-                                top_right_x_factor=factors["top_right_x_factor"],
-                                top_right_y_factor=factors["top_right_y_factor"],
-                                bottom_left_x_factor=factors["bottom_left_x_factor"],
-                                bottom_left_y_factor=factors["bottom_left_y_factor"],
-                                bottom_right_x_factor=factors["bottom_right_x_factor"],
-                                bottom_right_y_factor=factors["bottom_right_y_factor"],
-                                perspective=True,
-                                rotation_angle=rotation_angle
-                            )
-                else:
-                    # Existing logic for other tent types
-                    if "perspective" in value and "crop_type" in value:
-                        tent_image = apply_image_overlay(
-                            tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
-                            width_scale=width_scale,
-                            height_scale=height_scale,
-                            top_left_y_factor=value.get('top_left_y_factor'),
-                            top_left_x_factor=value.get('top_left_x_factor'),
-                            top_right_y_factor=value.get('top_right_y_factor'),
-                            top_right_x_factor=value.get('top_right_x_factor'),
-                            bottom_left_y_factor=value.get('bottom_left_y_factor'),
-                            bottom_left_x_factor=value.get('bottom_left_x_factor'),
-                            bottom_right_y_factor=value.get('bottom_right_y_factor'),
-                            bottom_right_x_factor=value.get('bottom_right_x_factor'),
-                            perspective=True,
-                            crop_type=value.get("crop_type"),
-                            rotation_angle=rotation_angle
-                        )
-                    elif "perspective" in value and "crop_type" not in value:
-                        tent_image = apply_image_overlay(
-                            tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
-                            width_scale=width_scale,
-                            height_scale=height_scale,
-                            top_left_y_factor=value.get('top_left_y_factor'),
-                            top_left_x_factor=value.get('top_left_x_factor'),
-                            top_right_y_factor=value.get('top_right_y_factor'),
-                            top_right_x_factor=value.get('top_right_x_factor'),
-                            bottom_left_y_factor=value.get('bottom_left_y_factor'),
-                            bottom_left_x_factor=value.get('bottom_left_x_factor'),
-                            bottom_right_y_factor=value.get('bottom_right_y_factor'),
-                            bottom_right_x_factor=value.get('bottom_right_x_factor'),
-                            perspective=True,
-                            rotation_angle=rotation_angle
-                        )
-                    elif "perspective" not in value and "crop_type" in value:
-                        tent_image = apply_image_overlay(
-                            tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
-                            width_scale=width_scale,
-                            height_scale=height_scale,
-                            top_y_factor=value.get('top_y_factor'),
-                            left_x_factor=value.get('left_x_factor'),
-                            crop_type=value.get("crop_type"),
-                            rotation_angle=rotation_angle
-                        )
-                    elif "perspective" not in value and "crop_type" not in value:
-                        tent_image = apply_image_overlay(
-                            tent_image, overlay_bgr=bgr, overlay_alpha=alpha,
-                            width_scale=width_scale,
-                            height_scale=height_scale,
-                            top_y_factor=value.get('top_y_factor'),
-                            left_x_factor=value.get('left_x_factor'),
-                            rotation_angle=rotation_angle
-                        )
+        tent_image = apply_color(tent_image, color_coordinates, overlay_data.color)
         
-        if masks is not None:
-            tent_image = overlay_masks(tent_image, masks, case_config.get("masks"))
-        
+        for logo_key, logo_value in logos.items():
+            overlay_image = logo_image
+            if "text" in logo_key:
+                overlay_image = create_text_image(overlay_data.text)
+                
+            coordinates = logo_value.get("coordinates")
+            scale = logo_value.get("scale")
+            mask = logo_value.get("mask", None)
+            
+            if mask is not None:
+                extracted = extract_masks(tent_image, coordinates=mask)
+            tent_image = overlay_logo(tent_image, overlay_image, coordinates=coordinates, scale=scale)
+            if mask is not None:
+                tent_image = overlay_masks(tent_image, coordinates=mask, extracted_mask=extracted)
+            
+        if len(extracted_masks) > 0:
+            for mask_key, mask_coordinates in masks.items():
+                tent_image = overlay_masks(tent_image, extracted_masks.get(mask_key), mask_coordinates)
+                
         is_success, buffer = cv2.imencode(".jpg", tent_image)
         if is_success:
             output_images.append((f"output_{tent_type}.jpg", buffer.tobytes()))
         
     return output_images
+         
+        
