@@ -16,10 +16,9 @@ logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
 
 app = FastAPI(title="Custom Canopy Mockup API")
 
-if os.getenv("DISABLE_HTTPS_REDIRECT", "false").lower() == "true":
+if os.getenv("DISABLE_HTTPS_REDIRECT", "false").lower() != "true":
     from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-
-    app.add_middleware(HTTPSRedirectMiddleware, enabled=False)
+    app.add_middleware(HTTPSRedirectMiddleware)
 
 
 app.add_middleware(
