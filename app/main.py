@@ -11,6 +11,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://custom-canopy-fastapi-server-1f8879954a5f.herokuapp.com"  
+        "https://custom-canopy-chatbot*"
     ],
     allow_credentials=True,
     allow_methods=["*"], 
