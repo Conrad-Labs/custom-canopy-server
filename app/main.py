@@ -4,22 +4,10 @@ from fastapi import FastAPI, Request
 from app.router.routes import router
 from fastapi.middleware.cors import CORSMiddleware
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-
-logger = logging.getLogger("uvicorn.error")
-logger.setLevel(logging.DEBUG)
-
-logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Custom Canopy Mockup API")
-
-if os.getenv("DISABLE_HTTPS_REDIRECT", "false").lower() != "true":
-    from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-    app.add_middleware(HTTPSRedirectMiddleware)
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,13 +24,9 @@ app.add_middleware(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    logger = logging.getLogger("uvicorn.access")
-    logger.setLevel(logging.INFO)
-    
     logger.info(f"Request: {request.method} {request.url}")
     response = await call_next(request)
     logger.info(f"Response: {response.status_code}")
-    
     return response
 
 @app.get("/")
