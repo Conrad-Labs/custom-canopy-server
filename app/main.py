@@ -11,7 +11,7 @@ app.add_middleware(
         "http://localhost:3000",
         "https://custom-canopy-fastapi-server-1f8879954a5f.herokuapp.com"  
         "https://custom-canopy-chatbot-aq22lfyts-team-alpha-8576f1e5.vercel.app"
-        "*"
+        "https://custom-canopy-chatbot-app-git-disable-form-team-alpha-8576f1e5.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"], 
