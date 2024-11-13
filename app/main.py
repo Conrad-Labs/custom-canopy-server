@@ -8,10 +8,10 @@ app = FastAPI(title="Custom Canopy Mockup API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "https://custom-canopy-chatbot-app-git-disable-form-team-alpha-8576f1e5.vercel.app"
-        "https://custom-canopy-chatbot-aq22lfyts-team-alpha-8576f1e5.vercel.app"
-        "https://custom-canopy-fastapi-server-1f8879954a5f.herokuapp.com"
+        # "http://localhost:3000",
+        "https://custom-canopy-chatbot-app-git-disable-form-team-alpha-8576f1e5.vercel.app",
+        "https://custom-canopy-chatbot-aq22lfyts-team-alpha-8576f1e5.vercel.app",
+        "https://custom-canopy-fastapi-server-1f8879954a5f.herokuapp.com",
     ],
     allow_credentials=True,
     allow_methods=["*"], 
