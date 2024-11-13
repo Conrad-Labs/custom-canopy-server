@@ -1,8 +1,14 @@
+import os
 from fastapi import FastAPI
 from app.router.routes import router
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Custom Canopy Mockup API")
+
+if os.getenv("DISABLE_HTTPS_REDIRECT", "false").lower() == "true":
+    from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+
+    app.add_middleware(HTTPSRedirectMiddleware, enabled=False)
 
 
 app.add_middleware(
