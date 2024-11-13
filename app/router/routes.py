@@ -1,9 +1,9 @@
+import io
 import json
-import base64
+import zipfile
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import JSONResponse, StreamingResponse
-from app.config import Config
+from fastapi.responses import StreamingResponse
 from app.schema import OverlayRequest
 from app.services.image_processor import apply_all_logos
 from app.constants import DEFAULT_TENT_COLOR, DEFAULT_TEXT, DEFAULT_FONT_COLOUR
@@ -32,15 +32,18 @@ async def create_mockups(
         logo_content = await logo.read()
         overlay_data = OverlayRequest(color=color, text=text, font_color=font_color)
         output_files = apply_all_logos(overlay_data, logo_content)
+        
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+            for file_path, file_content in output_files:
+                zip_file.writestr(file_path, file_content)
 
-        # Create a zip file in memory
-        images_data = []
-        for file_path, file_content in output_files:
-            encoded_image = base64.b64encode(file_content).decode("utf-8")
-            images_data.append({"filename": file_path, "data": f"data:image/jpeg;base64,{encoded_image}"})
-
-        # Return a JSON response with the images
-        return JSONResponse(content={"images": images_data})
+        zip_buffer.seek(0)
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={"Content-Disposition": "attachment; filename=mockups.zip"}
+        )
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
