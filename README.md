@@ -6,7 +6,6 @@ This project is an API built with **FastAPI** for generating customized canopy m
 
 - Accepts user-provided logo, background color (BGR format), and optional text.
 - Overlays these inputs onto predefined canopy mockups.
-- Saves generated mockup images in a directory for access.
 - Provides a downloadable ZIP file with all generated mockups.
 
 ## Prerequisites
@@ -62,11 +61,8 @@ fastapi dev app/main.py
   - `color` (str, optional): string representing the BGR color (e.g., `"[255, 0, 0]"` for blue). Defaults to white
   - `text` (str, optional): Custom text to overlay. Defaults to the empty string.
   - `logo` (file): PNG file to use as the logo overlay.
+  - `text_color` (str, optional): string representing the BGR color (e.g., `"[0, 0, 0]"` for black). Defaults to white
 
-#### 2. `GET /images/`
-
-**Description**: Retrieves a ZIP file containing all generated mockup images.
-
-- **Response**: A downloadable ZIP file named `images.zip`.
+- **Response**: A downloadable ZIP file named `mockups.zip`.
 
 
