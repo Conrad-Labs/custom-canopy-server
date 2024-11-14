@@ -317,7 +317,7 @@ OVERLAY_CONFIGURATIONS = {
                 "rotation_angle": 270
             },
             "top-slope": {
-                "coordinates": [(393, 333), (606, 333), (606, 151), (403, 151)],
+                "coordinates": [(606, 333), (393, 333), (393, 151), (606, 151)],
                 "scale": 1,
                 "rotation_angle": 180
             },
