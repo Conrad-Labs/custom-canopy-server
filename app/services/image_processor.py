@@ -5,48 +5,45 @@ from app.schema import OverlayRequest
 from app.config import Config
 from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS, SLOPE_CENTERS
 
+# Helper function to create an image to overlay text on mockup
 def create_text_image(
     text=DEFAULT_TEXT,
     font_size=DEFAULT_FONT_SIZE,
     font_color=DEFAULT_FONT_COLOUR,
     padding=DEFAULT_PADDING,
     rotation_angle=DEFAULT_ROTATION_ANGLE,
-    # upscale_factor=4
 ):
-    font_path = f"{Config.FONT_PATH}/arial.ttf"
-    font = ImageFont.truetype(font_path, font_size)  # Upscale font size
+    """
+    Creates an image for the text provided by the user with the specified font size, color, padding, and rotation angle.
+    The text image can then be overlaid onto the mockup like any other image.
 
-    # Convert BGR to RGBA
+    """
+    font_path = f"{Config.FONT_PATH}/arial.ttf"
+    font = ImageFont.truetype(font_path, font_size)
     font_color_rgba = (font_color[2], font_color[1], font_color[0], 255)
 
-    # Calculate the size of the text using a dummy image
     dummy_img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
     draw = ImageDraw.Draw(dummy_img)
     text_bbox = draw.textbbox((0, 0), text, font=font)
     text_width = (text_bbox[2] - text_bbox[0])
     text_height = (text_bbox[3] - text_bbox[1])
 
-    # Create a larger container (canvas) for high-resolution rendering
     canvas_size = (text_width + 2 * padding, text_height + 2 * padding)
     container = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(container)
 
-    # Draw the text centered in the container
     text_x = (canvas_size[0] - text_width) // 2
     text_y = (canvas_size[1] - text_height) // 2
     draw.text((text_x, text_y), text, font=font, fill=font_color_rgba)
 
-    # Rotate the container if rotation_angle is specified
     if rotation_angle != 0:
         container = container.rotate(rotation_angle, expand=True)
 
-    # Downscale the image to normal size for anti-aliasing
     downscaled_container = container.resize(
         (canvas_size[0], canvas_size[1]),
         Image.LANCZOS
     )
 
-    # Convert to a NumPy array for OpenCV with RGBA to BGRA conversion
     return cv2.cvtColor(np.array(downscaled_container), cv2.COLOR_RGBA2BGRA)
 
 
@@ -74,6 +71,7 @@ def extract_masks(tent_image, coordinates):
         raise ValueError("Invalid coordinates provided for mask extraction. Must be 2 points (x1, y1, x2, y2) or 4 points for a quadrilateral.")
 
     return extracted
+
 
 def overlay_masks(tent_image, extracted_mask, coordinates):
     """
@@ -104,7 +102,7 @@ def overlay_masks(tent_image, extracted_mask, coordinates):
     return tent_image
 
 
-# Helper function to apply logo to mockup
+# Helper functions to apply logos to a mockup
 def scale_quadrilateral(coordinates, scale):
     """Scales a quadrilateral around its centroid by the given scale factor."""
     centroid_x = int(np.mean([p[0] for p in coordinates]))
@@ -118,7 +116,9 @@ def scale_quadrilateral(coordinates, scale):
 
     return scaled_coordinates
 
+
 def apply_color(tent_image, config, color=[0, 0, 0]):
+    """Applies the chosen color the the mockup"""
     mask = np.zeros(tent_image.shape[:2], dtype=np.uint8)
     
     for _, points in config.items():
@@ -132,26 +132,29 @@ def apply_color(tent_image, config, color=[0, 0, 0]):
     
     return colored_image
 
+
 def overlay_logo(tent_image, logo_img, coordinates, scale=0.4):
     """ Overlays a perspective-transformed logo within a scaled quadrilateral region on the tent image. """
     scaled_coordinates = scale_quadrilateral(coordinates, scale)
-
     src_points = np.array([[0, 0], [logo_img.shape[1], 0], 
                            [logo_img.shape[1], logo_img.shape[0]], [0, logo_img.shape[0]]], dtype="float32")
-
     dst_points = np.array(scaled_coordinates, dtype="float32")
 
+
     if logo_img.shape[2] == 4:
-        logo_img = cv2.cvtColor(logo_img, cv2.COLOR_BGRA2BGR)
+        b, g, r, a = cv2.split(logo_img)
+        logo_rgb = cv2.merge((b, g, r))
+        alpha_mask = cv2.merge((a, a, a))
+    else:
+        logo_rgb = logo_img
+        alpha_mask = np.ones((logo_img.shape[0], logo_img.shape[1], 3), dtype=np.uint8) * 255
 
     M = cv2.getPerspectiveTransform(src_points, dst_points)
-    warped_logo = cv2.warpPerspective(logo_img, M, (tent_image.shape[1], tent_image.shape[0]))
+    warped_logo = cv2.warpPerspective(logo_rgb, M, (tent_image.shape[1], tent_image.shape[0]))
+    warped_mask = cv2.warpPerspective(alpha_mask, M, (tent_image.shape[1], tent_image.shape[0]))
 
-    if warped_logo.shape[2] == 4: 
-        warped_logo = cv2.cvtColor(warped_logo, cv2.COLOR_BGRA2BGR)
-
-    warped_gray = cv2.cvtColor(warped_logo, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(warped_gray, 1, 255, cv2.THRESH_BINARY)
+    mask_gray = cv2.cvtColor(warped_mask, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(mask_gray, 1, 255, cv2.THRESH_BINARY)
     mask_inv = cv2.bitwise_not(mask)
 
     x_min = max(0, min([pt[0] for pt in scaled_coordinates]))
@@ -169,13 +172,14 @@ def overlay_logo(tent_image, logo_img, coordinates, scale=0.4):
     logo_fg = cv2.bitwise_and(warped_logo_cropped, warped_logo_cropped, mask=mask_cropped)
 
     dst = cv2.add(tent_bg, logo_fg)
-
     tent_image[y_min:y_max, x_min:x_max] = dst
 
     return tent_image
 
 
+# Main function that applies logos and generates a mockup based on user requirements
 def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
+    """Generates canopy mockups based on user requirements of base color, text, font color, etc"""
     output_images = []
     
     for tent_type, tent_path in TENT_MOCKUPS.items():
@@ -200,7 +204,7 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
         for logo_key, logo_value in logos.items():
             overlay_image = logo_image
             if "text" in logo_key:
-                overlay_image = create_text_image(overlay_data.text)
+                overlay_image = create_text_image(overlay_data.text, font_color=overlay_data.font_color)
                 
             coordinates = logo_value.get("coordinates")
             scale = logo_value.get("scale")
