@@ -10,7 +10,7 @@ from app.constants import DEFAULT_TENT_COLOR, DEFAULT_TEXT, DEFAULT_FONT_COLOUR
 
 router = APIRouter()
 
-@router.post("/create-mockups/", tags=["Mockup Creation"])
+@router.post("/create-mockups", tags=["Mockup Creation"])
 async def create_mockups(
     color: str = Form(f'"{DEFAULT_TENT_COLOR}"'),
     text: str = Form(f'"{DEFAULT_TEXT}"'),
@@ -21,7 +21,6 @@ async def create_mockups(
     Create mockups for canopy layouts with the provided logo, colour, and text, if any.
     """
     try:
-        await logo.read()
         color = json.loads(color)
         if len(color) != 3 or not all(isinstance(c, int) for c in color):
             raise ValueError("Color must be a list of three integers representing B, G, and R values.")

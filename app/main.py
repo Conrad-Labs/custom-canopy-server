@@ -3,7 +3,6 @@ import logging
 from fastapi import FastAPI, Request
 from app.router.routes import router
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
