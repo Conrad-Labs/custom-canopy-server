@@ -8,12 +8,12 @@ DEFAULT_TENT_COLOR = [0, 0, 0]
 BLUE_TENT_COLOR = [255, 233, 211]
 
 TENT_MOCKUPS = {
-    "front": "tent-mockup-front.jpg",
-    # "half-wall": "tent-mockup-half-wall.jpg",
-    "no-walls": "tent-mockup-no-walls.jpg",
-    "top-view": "tent-mockup-top-view.jpg",
-    # "wall-block": "tent-mockup-wall-block.jpg",
-    # "wall-pillar": "tent-mockup-wall-pillar.jpg"
+    "front": "tent-mockup-front.png",
+    "half-wall": "tent-mockup-half-wall.png",
+    # "no-walls": "tent-mockup-no-walls.png",
+    "top-view": "tent-mockup-top-view.png",
+    # "wall-block": "tent-mockup-wall-block.png",
+    "wall-pillar": "tent-mockup-wall-pillar.png"
 }
 
 SLOPE_CENTERS = {
