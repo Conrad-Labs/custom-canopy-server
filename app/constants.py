@@ -8,7 +8,7 @@ DEFAULT_TENT_COLOR = [0, 0, 0]
 BLUE_TENT_COLOR = [255, 233, 211]
 
 TENT_MOCKUPS = {
-    # "front": "tent-mockup-front.jpg",
+    "front": "tent-mockup-front.jpg",
     # "half-wall": "tent-mockup-half-wall.jpg",
     "no-walls": "tent-mockup-no-walls.jpg",
     "top-view": "tent-mockup-top-view.jpg",
