@@ -118,18 +118,26 @@ def scale_quadrilateral(coordinates, scale):
 
 
 def apply_color(tent_image, config, color=[0, 0, 0]):
-    """Applies the chosen color the the mockup"""
+    """
+    Applies the chosen color to the mockup while preserving shadows and highlights.
+    """
     mask = np.zeros(tent_image.shape[:2], dtype=np.uint8)
     
     for _, points in config.items():
         cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
-            
+    
     mask_expanded = cv2.merge([mask] * 3)
     color_overlay = np.full(tent_image.shape, color, dtype=np.uint8)
 
+    tent_image_float = tent_image.astype(np.float32) / 255.0
+    color_overlay_float = color_overlay.astype(np.float32) / 255.0
+
+    blended_image = (tent_image_float * color_overlay_float)
+    blended_image = (blended_image * 255).astype(np.uint8)
+
     colored_image = tent_image.copy()
-    colored_image[mask_expanded == 255] = color_overlay[mask_expanded == 255]
-    
+    colored_image[mask_expanded == 255] = blended_image[mask_expanded == 255]
+
     return colored_image
 
 
