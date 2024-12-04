@@ -117,26 +117,34 @@ def scale_quadrilateral(coordinates, scale):
     return scaled_coordinates
 
 
-def apply_color(tent_image, config, color=[0, 0, 0]):
+def apply_color(tent_image, config, slope_color=DEFAULT_TENT_COLOR, canopy_color=DEFAULT_TENT_COLOR, walls_color=DEFAULT_TENT_COLOR):
     """
     Applies the chosen color to the mockup while preserving shadows and highlights.
     """
-    mask = np.zeros(tent_image.shape[:2], dtype=np.uint8)
-    
-    for _, points in config.items():
+    colored_image = tent_image.copy()
+    for region, points in config.items():
+        # Determine the color to apply based on the region type
+        if "slope" in region:
+            color = slope_color
+        elif "canopy" in region:
+            color = canopy_color
+        else:
+            color = walls_color
+            
+        mask = np.zeros(tent_image.shape[:2], dtype=np.uint8)
         cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
     
-    mask_expanded = cv2.merge([mask] * 3)
-    color_overlay = np.full(tent_image.shape, color, dtype=np.uint8)
+        mask_expanded = cv2.merge([mask] * 3)
+        color_overlay = np.full(tent_image.shape, color, dtype=np.uint8)
 
-    tent_image_float = tent_image.astype(np.float32) / 255.0
-    color_overlay_float = color_overlay.astype(np.float32) / 255.0
+        tent_image_float = tent_image.astype(np.float32) / 255.0
+        color_overlay_float = color_overlay.astype(np.float32) / 255.0
 
-    blended_image = (tent_image_float * color_overlay_float)
-    blended_image = (blended_image * 255).astype(np.uint8)
+        blended_image = (tent_image_float * color_overlay_float)
+        blended_image = (blended_image * 255).astype(np.uint8)
 
-    colored_image = tent_image.copy()
-    colored_image[mask_expanded == 255] = blended_image[mask_expanded == 255]
+        colored_image = colored_image.copy()
+        colored_image[mask_expanded == 255] = blended_image[mask_expanded == 255]
 
     return colored_image
 
@@ -207,7 +215,10 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
             for mask_key, mask_coordinates in masks.items():
                 extracted_masks[mask_key] = extract_masks(tent_image, mask_coordinates)
                 
-        tent_image = apply_color(tent_image, color_coordinates, overlay_data.color)
+        tent_image = apply_color(tent_image, color_coordinates, 
+                        slope_color=overlay_data.slope_color, 
+                        canopy_color=overlay_data.canopy_color, 
+                        walls_color=overlay_data.walls_color)
         
         for logo_key, logo_value in logos.items():
             overlay_image = logo_image
