@@ -122,23 +122,24 @@ def apply_color(tent_image, config, slope_color=DEFAULT_TENT_COLOR, canopy_color
     """
     Applies the chosen color to the mockup while preserving shadows and highlights.
     """
+    tent_image_hsv = cv2.cvtColor(tent_image, cv2.COLOR_BGR2HSV)
+
     for region, points in config.items():
-        # Determine the color to apply based on the region type
+        
         color = slope_color if "slope" in region else canopy_color if "canopy" in region else walls_color
-            
+        
+        color_hsv = cv2.cvtColor(np.uint8([[color]]), cv2.COLOR_BGR2HSV)[0][0]
         mask = np.zeros(tent_image.shape[:2], dtype=np.uint8)
         cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
-    
-        mask_expanded = cv2.merge([mask] * 3)
-        color_overlay = np.full(tent_image.shape, color, dtype=np.uint8)
+        masked_hsv = cv2.bitwise_and(tent_image_hsv, tent_image_hsv, mask=mask)
 
-        tent_image_float = tent_image.astype(np.float32) / 255.0
-        color_overlay_float = color_overlay.astype(np.float32) / 255.0
-
-        blended_image = (tent_image_float * color_overlay_float)
-        blended_image = (blended_image * 255).astype(np.uint8)
-
-        tent_image[mask_expanded == 255] = blended_image[mask_expanded == 255]
+        masked_hsv[..., 0] = color_hsv[0] 
+        masked_hsv[..., 1] = color_hsv[1]
+        
+        colored_region = cv2.cvtColor(masked_hsv, cv2.COLOR_HSV2BGR)
+        color_overlay = cv2.bitwise_and(colored_region, colored_region, mask=mask)
+        tent_image = cv2.bitwise_and(tent_image, tent_image, mask=cv2.bitwise_not(mask))
+        tent_image = cv2.add(tent_image, color_overlay)
 
     return tent_image
 
@@ -232,6 +233,7 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: 
         if len(extracted_masks) > 0:
             for mask_key, mask_coordinates in masks.items():
                 tent_image = overlay_masks(tent_image, extracted_masks.get(mask_key), mask_coordinates)
+                
                 
         is_success, buffer = cv2.imencode(".jpg", tent_image)
         if is_success:
