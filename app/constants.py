@@ -13,7 +13,7 @@ TENT_MOCKUPS = {
     # "no-walls": "tent-mockup-no-walls.png",
     "top-view": "tent-mockup-top-view.png",
     # "wall-block": "tent-mockup-wall-block.png",
-    "wall-pillar": "tent-mockup-wall-pillar.png"
+    # "wall-pillar": "tent-mockup-wall-pillar.png"
 }
 
 SLOPE_CENTERS = {
