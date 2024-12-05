@@ -191,13 +191,13 @@ def overlay_logo(tent_image, logo_img, coordinates, scale=0.4):
 def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: zipfile.ZipFile):
     """Generates canopy mockups based on user requirements of base color, text, font color, etc"""
     output_images = []
+    logo_array = np.frombuffer(logo_content, np.uint8)
+    logo_image = cv2.imdecode(logo_array, cv2.IMREAD_UNCHANGED)
     
     for tent_type, tent_path in TENT_MOCKUPS.items():
         
         relative_path = f"{Config.BASE_IMAGE_PATH}/{tent_path}"
         tent_image = cv2.imread(relative_path)
-        logo_array = np.frombuffer(logo_content, np.uint8)
-        logo_image = cv2.imdecode(logo_array, cv2.IMREAD_UNCHANGED)
         case_config = OVERLAY_CONFIGURATIONS.get(tent_type)
         color_coordinates = case_config.get("color-coordinates")
         logos = case_config.get("logos")
