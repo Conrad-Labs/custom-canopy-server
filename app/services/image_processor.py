@@ -188,7 +188,7 @@ def overlay_logo(tent_image, logo_img, coordinates, scale=0.4):
 
 
 # Main function that applies logos and generates a mockup based on user requirements
-def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zip_file: zipfile.ZipFile):
+def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: zipfile.ZipFile):
     """Generates canopy mockups based on user requirements of base color, text, font color, etc"""
     output_images = []
     
@@ -233,10 +233,10 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zip_file:
             for mask_key, mask_coordinates in masks.items():
                 tent_image = overlay_masks(tent_image, extracted_masks.get(mask_key), mask_coordinates)
                 
+        cv2.imwrite(f'{Config.OUTPUT_PATH}/{tent_type}.jpg', tent_image)
         is_success, buffer = cv2.imencode(".jpg", tent_image)
         if is_success:
-            zip_file.writestr(f"output_{tent_type}.jpg", buffer.tobytes())
+            zipfile.writestr(f"output_{tent_type}.jpg", buffer.tobytes())
         
-    return output_images
          
         

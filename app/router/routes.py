@@ -41,6 +41,7 @@ async def create_mockups(
 
         logo_content = await logo.read()
         overlay_data = OverlayRequest(slope_color=slope_color, canopy_color=canopy_color, walls_color=walls_color, text=text, font_color=font_color)
+        
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w") as zip_file:
             apply_all_logos(overlay_data, logo_content, zip_file)
