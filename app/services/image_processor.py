@@ -1,3 +1,4 @@
+import zipfile
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -121,15 +122,9 @@ def apply_color(tent_image, config, slope_color=DEFAULT_TENT_COLOR, canopy_color
     """
     Applies the chosen color to the mockup while preserving shadows and highlights.
     """
-    colored_image = tent_image.copy()
     for region, points in config.items():
         # Determine the color to apply based on the region type
-        if "slope" in region:
-            color = slope_color
-        elif "canopy" in region:
-            color = canopy_color
-        else:
-            color = walls_color
+        color = slope_color if "slope" in region else canopy_color if "canopy" in region else walls_color
             
         mask = np.zeros(tent_image.shape[:2], dtype=np.uint8)
         cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
@@ -143,10 +138,9 @@ def apply_color(tent_image, config, slope_color=DEFAULT_TENT_COLOR, canopy_color
         blended_image = (tent_image_float * color_overlay_float)
         blended_image = (blended_image * 255).astype(np.uint8)
 
-        colored_image = colored_image.copy()
-        colored_image[mask_expanded == 255] = blended_image[mask_expanded == 255]
+        tent_image[mask_expanded == 255] = blended_image[mask_expanded == 255]
 
-    return colored_image
+    return tent_image
 
 
 def overlay_logo(tent_image, logo_img, coordinates, scale=0.4):
@@ -194,7 +188,7 @@ def overlay_logo(tent_image, logo_img, coordinates, scale=0.4):
 
 
 # Main function that applies logos and generates a mockup based on user requirements
-def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
+def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zip_file: zipfile.ZipFile):
     """Generates canopy mockups based on user requirements of base color, text, font color, etc"""
     output_images = []
     
@@ -241,7 +235,7 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
                 
         is_success, buffer = cv2.imencode(".jpg", tent_image)
         if is_success:
-            output_images.append((f"output_{tent_type}.jpg", buffer.tobytes()))
+            zip_file.writestr(f"output_{tent_type}.jpg", buffer.tobytes())
         
     return output_images
          
