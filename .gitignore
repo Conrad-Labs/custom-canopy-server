@@ -1,5 +1,5 @@
 .venv
 .vscode
 
-static/output/
 .vercel
+static/

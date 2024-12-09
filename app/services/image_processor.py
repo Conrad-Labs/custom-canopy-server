@@ -1,10 +1,12 @@
+import io
 import zipfile
 import cv2
+from fastapi import HTTPException
+import requests
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from app.schema import OverlayRequest
-from app.config import Config
-from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS, SLOPE_CENTERS
+from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS, SLOPE_CENTERS, DEFAULT_FONT_URL
 
 # Helper function to create an image to overlay text on mockup
 def create_text_image(
@@ -13,14 +15,22 @@ def create_text_image(
     font_color=DEFAULT_FONT_COLOUR,
     padding=DEFAULT_PADDING,
     rotation_angle=DEFAULT_ROTATION_ANGLE,
+    font_url=DEFAULT_FONT_URL
 ):
     """
     Creates an image for the text provided by the user with the specified font size, color, padding, and rotation angle.
     The text image can then be overlaid onto the mockup like any other image.
 
     """
-    font_path = f"{Config.FONT_PATH}/arial.ttf"
-    font = ImageFont.truetype(font_path, font_size)
+    if not font_url:
+        raise ValueError("Font URL must be provided.")
+    
+    response = requests.get(font_url)
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch the font file. Status code: {response.status_code}")
+    
+    font_bytes = io.BytesIO(response.content)
+    font = ImageFont.truetype(font_bytes, font_size)
     font_color_rgba = (font_color[2], font_color[1], font_color[0], 255)
 
     dummy_img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
@@ -197,8 +207,11 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: 
     
     for tent_type, tent_path in TENT_MOCKUPS.items():
         
-        relative_path = f"{Config.BASE_IMAGE_PATH}/{tent_path}"
-        tent_image = cv2.imread(relative_path)
+        response = requests.get(tent_path)
+        if response.status_code != 200:
+            raise HTTPException(status_code=404, detail=f"Tent image {tent_type} not found.")
+        
+        tent_image = cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR)
         case_config = OVERLAY_CONFIGURATIONS.get(tent_type)
         color_coordinates = case_config.get("color-coordinates")
         logos = case_config.get("logos")

@@ -6,14 +6,21 @@ DEFAULT_ROTATION_ANGLE = 0
 DEFAULT_FONT_COLOUR = [255, 255, 255]
 DEFAULT_TENT_COLOR = [0, 0, 0]
 BLUE_TENT_COLOR = [255, 233, 211]
+DEFAULT_FONT_URL = "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/fonts/arial-B9hR4qfr9oEZX8IcjHDXp6HFNq4yzz.ttf"
+
+# TENT_MOCKUPS = {
+#     "front": "tent-mockup-front.png",
+#     "half-wall": "tent-mockup-half-wall.png",
+#     # "no-walls": "tent-mockup-no-walls.png",
+#     "top-view": "tent-mockup-top-view.png",
+#     # "wall-block": "tent-mockup-wall-block.png",
+#     # "wall-pillar": "tent-mockup-wall-pillar.png"
+# }
 
 TENT_MOCKUPS = {
-    "front": "tent-mockup-front.png",
-    "half-wall": "tent-mockup-half-wall.png",
-    # "no-walls": "tent-mockup-no-walls.png",
-    "top-view": "tent-mockup-top-view.png",
-    # "wall-block": "tent-mockup-wall-block.png",
-    # "wall-pillar": "tent-mockup-wall-pillar.png"
+    "front": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-front-PUClMH37WQ9ZeE441ENcj5OfQsIBeg.png",
+    "half-wall": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-half-wall-YB36f9zdXBc7US0wwVkptbr8ilmGVg.png",
+    "top-view": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-top-view-MDMODEv31VWZkrTotyIGGYgAhboYAH.png"
 }
 
 SLOPE_CENTERS = {
