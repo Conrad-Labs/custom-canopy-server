@@ -1,6 +1,5 @@
-import os
 import logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from app.router.routes import router
 from fastapi.middleware.cors import CORSMiddleware
 
