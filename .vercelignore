@@ -3,5 +3,4 @@
 **/*.pyc
 **/__pycache__/**
 .venv/**
-Aptfile
-Procfile
+README.md
