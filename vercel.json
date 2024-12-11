@@ -7,16 +7,5 @@
   ],
   "routes": [
     { "src": "/(.*)", "dest": "app/main.py" }
-  ],
-  "functions": {
-    "app/main.py": {
-      "maxDuration": 60
-    },
-    "app/router/routes.py": {
-      "maxDuration": 60
-    },
-    "app/services/image_processor.py": {
-      "maxDuration": 60
-    }
-  }
+  ]
 }
