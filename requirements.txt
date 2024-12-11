@@ -7,6 +7,7 @@ fastapi==0.115.6
 idna==3.10
 numpy==2.0.2
 opencv-python-headless==4.10.0.84
+pillow==11.0.0
 pydantic==2.10.3
 pydantic_core==2.27.1
 requests==2.32.3
