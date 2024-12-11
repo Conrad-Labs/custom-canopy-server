@@ -1,6 +1,0 @@
-*.md
-.vscode/**
-**/*.pyc
-**/__pycache__/**
-.venv/**
-README.md
