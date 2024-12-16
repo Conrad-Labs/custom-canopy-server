@@ -6,7 +6,7 @@ import requests
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from app.schema import OverlayRequest
-from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS, SLOPE_CENTERS, DEFAULT_FONT_URL
+from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS, SLOPE_CENTERS, DEFAULT_FONT_URL, DEFAULT_TEMPLATE_URL
 
 # Helper function to create an image to overlay text on mockup
 def create_text_image(
@@ -16,7 +16,7 @@ def create_text_image(
     padding=DEFAULT_PADDING,
     rotation_angle=DEFAULT_ROTATION_ANGLE,
     font_url=DEFAULT_FONT_URL
-):
+    ):
     """
     Creates an image for the text provided by the user with the specified font size, color, padding, and rotation angle.
     The text image can then be overlaid onto the mockup like any other image.
@@ -134,18 +134,27 @@ def apply_color(tent_image, config, slope_color=DEFAULT_TENT_COLOR, canopy_color
     """
     tent_image_hsv = cv2.cvtColor(tent_image, cv2.COLOR_BGR2HSV)
 
-    for region, points in config.items():
-        
-        color = slope_color if "slope" in region else canopy_color if "canopy" in region else walls_color
-        
+    def get_normalized_color(color):
         color_hsv = cv2.cvtColor(np.uint8([[color]]), cv2.COLOR_BGR2HSV)[0][0]
+        return color_hsv[0], color_hsv[1], color_hsv[2]
+    
+    slope_hue, slope_saturation, slope_value = get_normalized_color(slope_color)
+    canopy_hue, canopy_saturation, canopy_value = get_normalized_color(canopy_color)
+    walls_hue, walls_saturation, walls_value = get_normalized_color(walls_color)
+
+    for region, points in config.items():
+        if "slope" in region:
+            hue, saturation, value = slope_hue, slope_saturation, slope_value
+        elif "canopy" in region:
+            hue, saturation, value = canopy_hue, canopy_saturation, canopy_value
+        else: 
+            hue, saturation, value = walls_hue, walls_saturation, walls_value
         mask = np.zeros(tent_image.shape[:2], dtype=np.uint8)
         cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
         masked_hsv = cv2.bitwise_and(tent_image_hsv, tent_image_hsv, mask=mask)
-
-        masked_hsv[..., 0] = color_hsv[0] 
-        masked_hsv[..., 1] = color_hsv[1]
-        
+        masked_hsv[..., 0] = hue
+        masked_hsv[..., 1] = saturation
+        masked_hsv[..., 2] = value
         colored_region = cv2.cvtColor(masked_hsv, cv2.COLOR_HSV2BGR)
         color_overlay = cv2.bitwise_and(colored_region, colored_region, mask=mask)
         tent_image = cv2.bitwise_and(tent_image, tent_image, mask=cv2.bitwise_not(mask))
@@ -198,12 +207,75 @@ def overlay_logo(tent_image, logo_img, coordinates, scale=0.4):
     return tent_image
 
 
+def overlay_template(tent_image, template_img, coordinates, scale=0.4):
+    """
+    Applies a perspective-transformed template (logo or pattern) onto the tent image
+    while preserving the natural shadows and highlights of the tent surface and adhering
+    to the shape of the quadrilateral (slope).
+    """
+    scaled_coordinates = scale_quadrilateral(coordinates, scale)
+    x_min, y_min = np.min(scaled_coordinates, axis=0)
+    x_max, y_max = np.max(scaled_coordinates, axis=0)
+    x_min = max(0, x_min)
+    y_min = max(0, y_min)
+    x_max = min(tent_image.shape[1], x_max)
+    y_max = min(tent_image.shape[0], y_max)
+
+    region = tent_image[y_min:y_max, x_min:x_max]
+    template_resized = cv2.resize(template_img, (x_max - x_min, y_max - y_min))
+    region_hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
+    template_hsv = cv2.cvtColor(template_resized, cv2.COLOR_BGR2HSV)
+    avg_lightness = np.mean(region_hsv[:, :, 2]) 
+    avg_template_lightness = np.mean(template_hsv[:, :, 2])
+    lightness_scale = avg_lightness / avg_template_lightness
+    template_hsv[:, :, 2] = np.clip(template_hsv[:, :, 2] * lightness_scale, 0, 255)
+    adjusted_template = cv2.cvtColor(template_hsv, cv2.COLOR_HSV2BGR)
+    template_gray = cv2.cvtColor(adjusted_template, cv2.COLOR_BGR2GRAY)
+    _, template_mask = cv2.threshold(template_gray, 1, 255, cv2.THRESH_BINARY)
+    template_fg = cv2.bitwise_and(adjusted_template, adjusted_template, mask=template_mask)
+    src_points = np.array([[0, 0], [template_resized.shape[1], 0],
+                           [template_resized.shape[1], template_resized.shape[0]], [0, template_resized.shape[0]]], dtype="float32")
+    dst_points = np.array(scaled_coordinates, dtype="float32")
+    M = cv2.getPerspectiveTransform(src_points, dst_points)
+    warped_template = cv2.warpPerspective(template_fg, M, (tent_image.shape[1], tent_image.shape[0]))
+    tent_image[y_min:y_max, x_min:x_max] = warped_template[y_min:y_max, x_min:x_max]
+
+    return tent_image
+
+
+def color_template(template, walls_primary_color, walls_secondary_color, walls_tertiary_color):
+    """
+    Colors the different regions of a template based on black lines separating the regions.
+    """
+    gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    colors = [(walls_secondary_color[0], walls_secondary_color[1], walls_secondary_color[2]), 
+              (walls_tertiary_color[0], walls_tertiary_color[1], walls_tertiary_color[2]), 
+              (walls_primary_color[0], walls_primary_color[1], walls_primary_color[2]), 
+              (walls_secondary_color[0], walls_secondary_color[1], walls_secondary_color[2]),
+              (walls_tertiary_color[0], walls_tertiary_color[1], walls_tertiary_color[2]), ]
+    colored_image = template.copy()
+    for idx, contour in enumerate(contours):
+        color = colors[idx % len(colors)]
+        cv2.drawContours(colored_image, [contour], -1, color, thickness=cv2.FILLED)
+            
+    return colored_image
+
+
 # Main function that applies logos and generates a mockup based on user requirements
 def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: zipfile.ZipFile):
     """Generates canopy mockups based on user requirements of base color, text, font color, etc"""
-    output_images = []
     logo_array = np.frombuffer(logo_content, np.uint8)
     logo_image = cv2.imdecode(logo_array, cv2.IMREAD_UNCHANGED)
+    
+    response = requests.get(DEFAULT_TEMPLATE_URL)
+    if response.status_code != 200:
+        raise HTTPException(status_code=404, detail=f"Tent image {tent_type} not found.")
+    
+    template = cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR)
+    template = color_template(template, overlay_data.walls_primary_color, overlay_data.walls_secondary_color, overlay_data.walls_tertiary_color)
+    cv2.imwrite("./template.jpg", template)
     
     for tent_type, tent_path in TENT_MOCKUPS.items():
         
@@ -226,7 +298,7 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: 
         tent_image = apply_color(tent_image, color_coordinates, 
                         slope_color=overlay_data.slope_color, 
                         canopy_color=overlay_data.canopy_color, 
-                        walls_color=overlay_data.walls_color)
+                        walls_color=overlay_data.walls_primary_color)
         
         for logo_key, logo_value in logos.items():
             overlay_image = logo_image
@@ -239,7 +311,11 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: 
             
             if mask is not None:
                 extracted = extract_masks(tent_image, coordinates=mask)
-            tent_image = overlay_logo(tent_image, overlay_image, coordinates=coordinates, scale=scale)
+            if "template" in logo_key:
+                if 'true' in overlay_data.is_patterned:
+                    tent_image = overlay_template(tent_image, template, coordinates=coordinates, scale=scale)
+            else:
+                tent_image = overlay_logo(tent_image, overlay_image, coordinates=coordinates, scale=scale)
             if mask is not None:
                 tent_image = overlay_masks(tent_image, coordinates=mask, extracted_mask=extracted)
             
@@ -248,6 +324,7 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: 
                 tent_image = overlay_masks(tent_image, extracted_masks.get(mask_key), mask_coordinates)
                 
                 
+        cv2.imwrite(f'{tent_type}.jpg', tent_image)
         is_success, buffer = cv2.imencode(".jpg", tent_image)
         if is_success:
             zipfile.writestr(f"output_{tent_type}.jpg", buffer.tobytes())

@@ -6,17 +6,10 @@ DEFAULT_ROTATION_ANGLE = 0
 DEFAULT_FONT_COLOUR = [255, 255, 255]
 DEFAULT_TENT_COLOR = [0, 0, 0]
 BLUE_TENT_COLOR = [255, 233, 211]
+DEFAULT_IS_PATTERNED='false'
 DEFAULT_FONT_URL = "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/fonts/arial-B9hR4qfr9oEZX8IcjHDXp6HFNq4yzz.ttf"
-
-# TENT_MOCKUPS = {
-#     "front": "tent-mockup-front.png",
-#     "half-wall": "tent-mockup-half-wall.png",
-#     # "no-walls": "tent-mockup-no-walls.png",
-#     "top-view": "tent-mockup-top-view.png",
-#     # "wall-block": "tent-mockup-wall-block.png",
-#     # "wall-pillar": "tent-mockup-wall-pillar.png"
-# }
-
+# DEFAULT_TEMPLATE_URL="https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/templates/wave-pattern-pQssnp9mX6krbfvdUCB9tWlE1N8qyA.jpg"
+DEFAULT_TEMPLATE_URL="https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/templates/wave-pattern-bUfoUtRUqIcWw9nKAAv2X0fxFUsp81.png"
 TENT_MOCKUPS = {
     "front": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-front-PUClMH37WQ9ZeE441ENcj5OfQsIBeg.png",
     "half-wall": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-half-wall-YB36f9zdXBc7US0wwVkptbr8ilmGVg.png",
@@ -39,6 +32,10 @@ OVERLAY_CONFIGURATIONS = {
             "top-slope": {
                 "coordinates": [(1665, 536), (2339, 536), (2659, 808), (1384, 808)],
                 "scale": 1.1,
+            },
+            "template": {
+                "coordinates": [(1080, 1263), (2915, 1264), (2917, 2671), (1082, 2669)],
+                "scale": 1
             },
             "back-wall": {
                 "coordinates": [(1090, 1281), (2910, 1281), (2910, 2621), (1090, 2621)],
@@ -91,10 +88,7 @@ OVERLAY_CONFIGURATIONS = {
         
         "logos": {
             
-            "right-side-wall": {
-                "coordinates": [(2041, 911), (2836, 999), (2850, 1787), (2036, 1960)],
-                "scale": 0.9,
-            },
+    
             "left-slope": {
                 "coordinates": [(1523, 469), (1879, 427), (1953, 574), (1182, 677)],
                 "scale": 0.90,
@@ -111,22 +105,32 @@ OVERLAY_CONFIGURATIONS = {
                 "coordinates": [(2028, 574), (2906, 796), (2901, 952), (2025, 801)],
                 "scale": 0.5
             },
+            "template": {
+                "coordinates": [(1718, 1020), (1987, 1005), (1986, 1740), (1716, 1726)],
+                "scale": 1,
+                "crop-type": "vertical",
+                "mask": [(1996, 863), (2882, 1810)]
+            },
             "back-wall": {
                 "coordinates": [(1744, 1041), (2519, 994), (2562, 1741), (1745, 1699)],
                 "scale": 0.9,
                 "crop-type": "vertical",
-                "mask": [(1996, 863), (2882, 1810)] # just need top left and bottom right to extract mask
+                "mask": [(1996, 863), (2882, 1810)]
+            },
+            "right-side-wall": {
+                "coordinates": [(2041, 911), (2836, 999), (2850, 1787), (2036, 1960)],
+                "scale": 0.9,
             },
             
         },
         
         "color-coordinates": {
             
+            "back-wall": [(1718, 1020), (1987, 1005), (1986, 1740), (1716, 1726)],
             "slope": [(1815, 296), (970, 709), (2486, 683)],
             "canopy-left": [(659, 749), (2023, 573), (2028, 807), (658, 938)],
             "canopy-right": [(2023, 573), (2903, 785), (2908, 964), (2028, 810)],
             "side-wall": [(2022, 808), (2857, 955), (2862, 1812), (2024, 1982)],
-            "back-wall": [(1718, 1020), (1987, 1005), (1986, 1740), (1716, 1726)],
             
         },
     
@@ -155,14 +159,6 @@ OVERLAY_CONFIGURATIONS = {
                 "coordinates": [(2051, 472), (2431, 505), (3148, 861), (2065, 795)],
                 "scale": 0.9,
             },
-            "left-side-wall": {
-                "coordinates": [(654, 2123), (1971, 2078), (1968, 2609), (678, 2726)],
-                "scale": 0.6,
-            },
-            "right-side-wall": {
-                "coordinates": [(2140, 2125), (3438, 2073), (3435, 2731), (2138, 2877)],
-                "scale": 0.6
-            },
             "left-canopy-text": {
                 "coordinates": [(568, 927), (2006, 839), (2010, 1204), (567, 1253)],
                 "scale": 0.5
@@ -171,10 +167,23 @@ OVERLAY_CONFIGURATIONS = {
                 "coordinates": [(2081, 831), (3492, 930), (3496, 1250), (2094, 1198)],
                 "scale": 0.5
             },
+            "template": {
+                "coordinates": [(2070, 1274), (3468, 1275), (3467, 2710), (2072, 2770)],
+                "scale": 1,
+                "mask": [(2019, 2065), (3527, 2002), (3528, 2781), (2024, 2950)]
+            },
             "back-wall": {
                 "coordinates": [(2079, 1320), (3439, 1285), (3410, 2662), (2077, 2560)],
                 "scale": 0.8,
                 "mask": [(2019, 2065), (3527, 2002), (3528, 2781), (2024, 2950)]
+            },
+            "left-side-wall": {
+                "coordinates": [(654, 2123), (1971, 2078), (1968, 2609), (678, 2726)],
+                "scale": 0.6,
+            },
+            "right-side-wall": {
+                "coordinates": [(2140, 2125), (3438, 2073), (3435, 2731), (2138, 2877)],
+                "scale": 0.6
             },
             
         },
@@ -204,6 +213,7 @@ OVERLAY_CONFIGURATIONS = {
             "9": [(3424, 1932), (3477, 1981)],
             "10": [(2007, 1982), (2080, 2035)],
             "11": [(2032, 1898), (2083, 1938)],
+            "12": [(2070, 1274), (2080, 1294)]
             
         },
         
