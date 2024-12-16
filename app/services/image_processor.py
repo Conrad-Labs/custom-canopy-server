@@ -275,7 +275,6 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: 
     
     template = cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR)
     template = color_template(template, overlay_data.walls_primary_color, overlay_data.walls_secondary_color, overlay_data.walls_tertiary_color)
-    cv2.imwrite("./template.jpg", template)
     
     for tent_type, tent_path in TENT_MOCKUPS.items():
         
@@ -323,8 +322,6 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: 
             for mask_key, mask_coordinates in masks.items():
                 tent_image = overlay_masks(tent_image, extracted_masks.get(mask_key), mask_coordinates)
                 
-                
-        cv2.imwrite(f'{tent_type}.jpg', tent_image)
         is_success, buffer = cv2.imencode(".jpg", tent_image)
         if is_success:
             zipfile.writestr(f"output_{tent_type}.jpg", buffer.tobytes())
