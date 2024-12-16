@@ -250,11 +250,11 @@ def color_template(template, walls_primary_color, walls_secondary_color, walls_t
     gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    colors = [(walls_secondary_color[0], walls_secondary_color[1], walls_secondary_color[2]), 
-              (walls_tertiary_color[0], walls_tertiary_color[1], walls_tertiary_color[2]), 
-              (walls_primary_color[0], walls_primary_color[1], walls_primary_color[2]), 
+    colors = [ (walls_tertiary_color[0], walls_tertiary_color[1], walls_tertiary_color[2]), 
               (walls_secondary_color[0], walls_secondary_color[1], walls_secondary_color[2]),
-              (walls_tertiary_color[0], walls_tertiary_color[1], walls_tertiary_color[2]), ]
+              (walls_primary_color[0], walls_primary_color[1], walls_primary_color[2]), 
+              (walls_tertiary_color[0], walls_tertiary_color[1], walls_tertiary_color[2]),
+              (walls_secondary_color[0], walls_secondary_color[1], walls_secondary_color[2]),]
     colored_image = template.copy()
     for idx, contour in enumerate(contours):
         color = colors[idx % len(colors)]
