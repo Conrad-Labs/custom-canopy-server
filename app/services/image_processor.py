@@ -134,31 +134,31 @@ def apply_color(tent_image, config, slope_color=DEFAULT_TENT_COLOR, canopy_color
     """
     tent_image_hsv = cv2.cvtColor(tent_image, cv2.COLOR_BGR2HSV)
 
-    def get_normalized_color(color):
-        color_hsv = cv2.cvtColor(np.uint8([[color]]), cv2.COLOR_BGR2HSV)[0][0]
-        return color_hsv[0], color_hsv[1], color_hsv[2]
-    
-    slope_hue, slope_saturation, slope_value = get_normalized_color(slope_color)
-    canopy_hue, canopy_saturation, canopy_value = get_normalized_color(canopy_color)
-    walls_hue, walls_saturation, walls_value = get_normalized_color(walls_color)
+    def apply_region_color(region_mask, target_color):
+        original_v = tent_image_hsv[..., 2]
+        solid_color_hsv = np.full_like(tent_image_hsv, (target_color[0], target_color[1], 0))  # (H, S, 0)
+        solid_color_hsv[..., 2] = original_v
+        colored_region = cv2.cvtColor(solid_color_hsv, cv2.COLOR_HSV2BGR)
+        colored_region = cv2.bitwise_and(colored_region, colored_region, mask=region_mask)
+        tent_masked = cv2.bitwise_and(tent_image, tent_image, mask=cv2.bitwise_not(region_mask))
+        return cv2.add(tent_masked, colored_region)
 
+    # Define colors in HSV
+    slope_color_hsv = cv2.cvtColor(np.uint8([[slope_color]]), cv2.COLOR_BGR2HSV)[0][0]
+    canopy_color_hsv = cv2.cvtColor(np.uint8([[canopy_color]]), cv2.COLOR_BGR2HSV)[0][0]
+    walls_color_hsv = cv2.cvtColor(np.uint8([[walls_color]]), cv2.COLOR_BGR2HSV)[0][0]
+
+    # Apply colors for different regions
     for region, points in config.items():
-        if "slope" in region:
-            hue, saturation, value = slope_hue, slope_saturation, slope_value
-        elif "canopy" in region:
-            hue, saturation, value = canopy_hue, canopy_saturation, canopy_value
-        else: 
-            hue, saturation, value = walls_hue, walls_saturation, walls_value
         mask = np.zeros(tent_image.shape[:2], dtype=np.uint8)
         cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
-        masked_hsv = cv2.bitwise_and(tent_image_hsv, tent_image_hsv, mask=mask)
-        masked_hsv[..., 0] = hue
-        masked_hsv[..., 1] = saturation
-        masked_hsv[..., 2] = value
-        colored_region = cv2.cvtColor(masked_hsv, cv2.COLOR_HSV2BGR)
-        color_overlay = cv2.bitwise_and(colored_region, colored_region, mask=mask)
-        tent_image = cv2.bitwise_and(tent_image, tent_image, mask=cv2.bitwise_not(mask))
-        tent_image = cv2.add(tent_image, color_overlay)
+        
+        if "slope" in region:
+            tent_image = apply_region_color(mask, slope_color_hsv)
+        elif "canopy" in region:
+            tent_image = apply_region_color(mask, canopy_color_hsv)
+        else: 
+            tent_image = apply_region_color(mask, walls_color_hsv)
 
     return tent_image
 
@@ -216,29 +216,18 @@ def overlay_template(tent_image, template_img, coordinates, scale=0.4):
     scaled_coordinates = scale_quadrilateral(coordinates, scale)
     x_min, y_min = np.min(scaled_coordinates, axis=0)
     x_max, y_max = np.max(scaled_coordinates, axis=0)
-    x_min = max(0, x_min)
-    y_min = max(0, y_min)
-    x_max = min(tent_image.shape[1], x_max)
-    y_max = min(tent_image.shape[0], y_max)
-
     region = tent_image[y_min:y_max, x_min:x_max]
     template_resized = cv2.resize(template_img, (x_max - x_min, y_max - y_min))
     region_hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
     template_hsv = cv2.cvtColor(template_resized, cv2.COLOR_BGR2HSV)
-    avg_lightness = np.mean(region_hsv[:, :, 2]) 
-    avg_template_lightness = np.mean(template_hsv[:, :, 2])
-    lightness_scale = avg_lightness / avg_template_lightness
-    template_hsv[:, :, 2] = np.clip(template_hsv[:, :, 2] * lightness_scale, 0, 255)
-    adjusted_template = cv2.cvtColor(template_hsv, cv2.COLOR_HSV2BGR)
-    template_gray = cv2.cvtColor(adjusted_template, cv2.COLOR_BGR2GRAY)
-    _, template_mask = cv2.threshold(template_gray, 1, 255, cv2.THRESH_BINARY)
-    template_fg = cv2.bitwise_and(adjusted_template, adjusted_template, mask=template_mask)
-    src_points = np.array([[0, 0], [template_resized.shape[1], 0],
-                           [template_resized.shape[1], template_resized.shape[0]], [0, template_resized.shape[0]]], dtype="float32")
-    dst_points = np.array(scaled_coordinates, dtype="float32")
-    M = cv2.getPerspectiveTransform(src_points, dst_points)
-    warped_template = cv2.warpPerspective(template_fg, M, (tent_image.shape[1], tent_image.shape[0]))
-    tent_image[y_min:y_max, x_min:x_max] = warped_template[y_min:y_max, x_min:x_max]
+    template_hsv[..., 2] = region_hsv[..., 2]
+    blended_template = cv2.cvtColor(template_hsv, cv2.COLOR_HSV2BGR)
+    mask = cv2.inRange(template_resized, (0, 0, 0), (255, 255, 255))
+    blended_template = cv2.bitwise_and(blended_template, blended_template, mask=mask)
+    tent_bg = cv2.bitwise_and(region, region, mask=cv2.bitwise_not(mask))
+
+    blended_region = cv2.add(tent_bg, blended_template)
+    tent_image[y_min:y_max, x_min:x_max] = blended_region
 
     return tent_image
 
@@ -259,7 +248,8 @@ def color_template(template, walls_primary_color, walls_secondary_color, walls_t
     for idx, contour in enumerate(contours):
         color = colors[idx % len(colors)]
         cv2.drawContours(colored_image, [contour], -1, color, thickness=cv2.FILLED)
-            
+        cv2.drawContours(colored_image, [contour], -1, color, thickness=5)
+                    
     return colored_image
 
 
