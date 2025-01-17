@@ -8,12 +8,12 @@ DEFAULT_TENT_COLOR = [0, 0, 0]
 BLUE_TENT_COLOR = [255, 233, 211]
 DEFAULT_IS_PATTERNED='false'
 DEFAULT_FONT_URL = "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/fonts/arial-B9hR4qfr9oEZX8IcjHDXp6HFNq4yzz.ttf"
-# DEFAULT_TEMPLATE_URL="https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/templates/wave-pattern-pQssnp9mX6krbfvdUCB9tWlE1N8qyA.jpg"
 DEFAULT_TEMPLATE_URL="https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/templates/wave-pattern-bUfoUtRUqIcWw9nKAAv2X0fxFUsp81.png"
 TENT_MOCKUPS = {
     "front": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-front-PUClMH37WQ9ZeE441ENcj5OfQsIBeg.png",
     "half-wall": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-half-wall-YB36f9zdXBc7US0wwVkptbr8ilmGVg.png",
-    "top-view": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-top-view-MDMODEv31VWZkrTotyIGGYgAhboYAH.png"
+    "top-view": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-top-view-MDMODEv31VWZkrTotyIGGYgAhboYAH.png",
+    "no-walls": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-no-walls-vWSBKzV0BzTsS7rv1E1JCzz5IMJ54O.png"
 }
 
 SLOPE_CENTERS = {
@@ -49,7 +49,7 @@ OVERLAY_CONFIGURATIONS = {
                 "coordinates": [(2966, 2050), (3097, 2099), (3093, 2801), (2961, 2655)],
                 "scale": 0.9
             },
-            "canopy-text": {
+            "front-canopy-text": {
                 "coordinates": [(858, 829), (3137, 829), (3137, 1189), (858, 1189)],
                 "scale": 0.5
             }
@@ -58,11 +58,11 @@ OVERLAY_CONFIGURATIONS = {
         
         "color-coordinates": {
             
-            "slope": [(2000, 267), (925, 814), (3065, 814)],
-            "canopy": [(835, 812), (3165, 812), (3172, 1219), (830, 1220)],
+            "front_slope": [(2000, 267), (925, 814), (3065, 814)],
+            "front_canopy": [(835, 812), (3165, 812), (3172, 1219), (830, 1220)],
             "back_wall": [(1080, 1263), (2915, 1264), (2917, 2671), (1082, 2669)],
-            "side_wall_left": [(891, 2012), (1061, 1947), (1046, 2663), (886, 2840)],
-            "side_wall_right": [(2940, 1951), (3109, 2013), (3112, 2843), (2953, 2666)]
+            "left_side_wall": [(891, 2012), (1061, 1947), (1046, 2663), (886, 2840)],
+            "right_side_wall": [(2940, 1951), (3109, 2013), (3112, 2843), (2953, 2666)]
             
         },
     
@@ -87,7 +87,6 @@ OVERLAY_CONFIGURATIONS = {
     "wall-block": {
         
         "logos": {
-            
     
             "left-slope": {
                 "coordinates": [(1523, 469), (1879, 427), (1953, 574), (1182, 677)],
@@ -97,11 +96,11 @@ OVERLAY_CONFIGURATIONS = {
                 "coordinates": [(1948, 460), (2114, 498), (2363, 632), (2025, 551)],
                 "scale": 1.1,
             },
-            "canopy-left-text": {
+            "front-canopy-text": {
                 "coordinates": [(672, 762), (2000, 598), (2001, 788), (672, 916)],
                 "scale": 0.5
             },
-            "canopy-right-text": {
+            "right-canopy-text": {
                 "coordinates": [(2028, 574), (2906, 796), (2901, 952), (2025, 801)],
                 "scale": 0.5
             },
@@ -126,11 +125,11 @@ OVERLAY_CONFIGURATIONS = {
         
         "color-coordinates": {
             
-            "back-wall": [(1718, 1020), (1987, 1005), (1986, 1740), (1716, 1726)],
-            "slope": [(1815, 296), (970, 709), (2486, 683)],
-            "canopy-left": [(659, 749), (2023, 573), (2028, 807), (658, 938)],
-            "canopy-right": [(2023, 573), (2903, 785), (2908, 964), (2028, 810)],
-            "side-wall": [(2022, 808), (2857, 955), (2862, 1812), (2024, 1982)],
+            "front-wall": [(1718, 1020), (1987, 1005), (1986, 1740), (1716, 1726)],
+            "front-slope": [(1815, 296), (970, 709), (2486, 683)],
+            "left-canopy": [(659, 749), (2023, 573), (2028, 807), (658, 938)],
+            "right-canopy": [(2023, 573), (2903, 785), (2908, 964), (2028, 810)],
+            "right-wall": [(2022, 808), (2857, 955), (2862, 1812), (2024, 1982)],
             
         },
     
@@ -159,7 +158,7 @@ OVERLAY_CONFIGURATIONS = {
                 "coordinates": [(2051, 472), (2431, 505), (3148, 861), (2065, 795)],
                 "scale": 0.9,
             },
-            "left-canopy-text": {
+            "front-canopy-text": {
                 "coordinates": [(568, 927), (2006, 839), (2010, 1204), (567, 1253)],
                 "scale": 0.5
             },
@@ -190,11 +189,11 @@ OVERLAY_CONFIGURATIONS = {
         
         "color-coordinates": {
             
-            "slope-left": [(2040, 293), (656, 911), (2038, 809)],
-            "slope-right": [(2040, 293), (2038, 809), (3374, 900)],
-            "canopy-left": [(550, 910), (2046, 808), (2039, 1228), (546, 1277)],
-            "canopy-right": [(2044, 810), (3525, 909), (3530, 1278), (2039, 1228)],
-            "back-wall": [(2074, 1295), (3461, 1260), (3467, 2010), (2072, 2070)],
+            "front-slope": [(2040, 293), (656, 911), (2038, 809)],
+            "right-slope": [(2040, 293), (2038, 809), (3374, 900)],
+            "front-canopy": [(550, 910), (2046, 808), (2039, 1228), (546, 1277)],
+            "right-canopy": [(2044, 810), (3525, 909), (3530, 1278), (2039, 1228)],
+            "front-wall": [(2074, 1295), (3461, 1260), (3467, 2010), (2072, 2070)],
             "left-side-wall": [(608, 2006), (2012, 1960), (2012, 2648), (600, 2776)],
             "right-side-wall": [(2072, 2069), (3484, 2009), (3480, 2780), (2069, 2947)]
             
@@ -235,7 +234,7 @@ OVERLAY_CONFIGURATIONS = {
                 "coordinates": [(2195, 393), (2363, 434), (3053, 807), (2126, 632)],
                 "scale": 0.9
             },
-            "left-canopy-text": {
+            "front-canopy-text": {
                 "coordinates": [(645, 818), (2362, 676), (2378, 1046), (644, 1145)],
                 "scale": 0.5
             },
@@ -292,7 +291,7 @@ OVERLAY_CONFIGURATIONS = {
                 "coordinates": [(532, 225), (629, 235), (814, 315), (545, 290)],
                 "scale": 0.9
             },
-            "left-canopy-text": {
+            "front-canopy-text": {
                 "coordinates": [(161, 325), (539, 299), (539, 369), (161, 370)],
                 "scale": 0.5
             },
@@ -305,14 +304,14 @@ OVERLAY_CONFIGURATIONS = {
         
         "color-coordinates": {
             
-            "left-slope-top": [(521, 170), (417, 230), (527, 228)],
-            "left-slope-bottom-1": [(416, 237), (526, 226), (541, 292), (156, 321)],
-            "left-slope-bottom-2": [(428, 223), (502, 222), (490, 264), (337, 263)],
+            "front-slope-top": [(521, 170), (417, 230), (527, 228)],
+            "front-slope-bottom-1": [(416, 237), (526, 226), (541, 292), (156, 321)],
+            "front-slope-bottom-2": [(428, 223), (502, 222), (490, 264), (337, 263)],
             "right-slope-top": [(523, 170), (531, 233), (662, 256)],
             "right-slope-bottom-1": [(531, 233), (690, 271), (871, 319), (543, 291)],
             "right-slope-bottom-2": [(529, 223), (606, 222), (752, 290), (540, 266)],
-            "canopy-left": [(158, 322), (542, 294), (542, 374), (157, 376)],
-            "canopy-right": [(545, 293), (873, 321), (873, 374), (545, 374)]
+            "front-canopy": [(158, 322), (542, 294), (542, 374), (157, 376)],
+            "right-canopy": [(545, 293), (873, 321), (873, 374), (545, 374)]
             
         },
     
@@ -343,7 +342,7 @@ OVERLAY_CONFIGURATIONS = {
                 "scale": 1,
                 "rotation_angle": 90
             },
-            "bottom-canopy-text": {
+            "front-canopy-text": {
                 "coordinates": [(238, 825), (766, 825), (766, 886), (238, 886)],
                 "scale": 0.5
             },
@@ -352,7 +351,7 @@ OVERLAY_CONFIGURATIONS = {
                 "scale": 0.5,
                 "rotation_angle": 270
             },
-            "top-canopy-text": {
+            "back-canopy-text": {
                 "coordinates": [(767, 141), (236, 141), (236, 84), (767, 84)],
                 "scale": 0.5,
                 "rotation_angle": 180
@@ -367,21 +366,21 @@ OVERLAY_CONFIGURATIONS = {
         
         "color-coordinates": {
             
-            "slope-top-1": [(502, 485), (449, 567), (552, 565)],
-            "slope-bottom-1": [(449, 567), (552, 565), (776, 817), (228, 817)],
-            "canopy-1": [(233, 821), (766, 821), (768, 885), (236, 885)],
+            "front-slope-top": [(502, 485), (449, 567), (552, 565)],
+            "front-slope-bottom": [(449, 567), (552, 565), (776, 817), (228, 817)],
+            "front-canopy": [(233, 821), (766, 821), (768, 885), (236, 885)],
             
-            "slope-top-2": [(500, 483), (410, 425), (410, 539)],
-            "slope-bottom-2": [(410, 423), (417, 536), (167, 756), (167, 210)],
-            "canopy-2": [(100, 215), (162, 215), (162, 748), (100, 748)],
+            "left-slope-top": [(500, 483), (410, 425), (410, 539)],
+            "left-slope-bottom": [(410, 423), (417, 536), (167, 756), (167, 210)],
+            "left-canopy": [(100, 215), (162, 215), (162, 748), (100, 748)],
             
-            "slope-top-3": [(501, 480), (556, 395), (448, 395)],
-            "slope-bottom-3": [(556, 395), (446, 395), (229, 148), (774, 148)],
-            "canopy-3": [(236, 80), (768, 80), (768, 143), (236, 143)],
+            "back-slope-top": [(501, 480), (556, 395), (448, 395)],
+            "back-slope-bottom": [(556, 395), (446, 395), (229, 148), (774, 148)],
+            "back-canopy": [(236, 80), (768, 80), (768, 143), (236, 143)],
             
-            "slope-top-4": [(502, 483), (589, 537), (589, 427)],
-            "slope-bottom-4": [(589, 539), (589, 425), (837, 208), (837, 757)],
-            "canopy-4": [(841, 217), (903, 217), (903, 751), (841, 751)]
+            "right-slope-top": [(502, 483), (589, 537), (589, 427)],
+            "right-slope-bottom": [(589, 539), (589, 425), (837, 208), (837, 757)],
+            "right-canopy": [(841, 217), (903, 217), (903, 751), (841, 751)]
             
         },
     

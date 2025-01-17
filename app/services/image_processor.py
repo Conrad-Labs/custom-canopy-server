@@ -5,7 +5,7 @@ from fastapi import HTTPException
 import requests
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from app.schema import OverlayRequest
+from app.schema import OverlayRequest, TentSides
 from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS, SLOPE_CENTERS, DEFAULT_FONT_URL, DEFAULT_TEMPLATE_URL
 
 # Helper function to create an image to overlay text on mockup
@@ -128,7 +128,7 @@ def scale_quadrilateral(coordinates, scale):
     return scaled_coordinates
 
 
-def apply_color(tent_image, config, slope_color=DEFAULT_TENT_COLOR, canopy_color=DEFAULT_TENT_COLOR, walls_color=DEFAULT_TENT_COLOR):
+def apply_color(tent_image, config, peak_colors: TentSides, valence_colors: TentSides, walls_color):
     """
     Applies the chosen color to the mockup while preserving shadows and highlights.
     """
@@ -144,9 +144,16 @@ def apply_color(tent_image, config, slope_color=DEFAULT_TENT_COLOR, canopy_color
         return cv2.add(tent_masked, colored_region)
 
     # Define colors in HSV
-    slope_color_hsv = cv2.cvtColor(np.uint8([[slope_color]]), cv2.COLOR_BGR2HSV)[0][0]
-    canopy_color_hsv = cv2.cvtColor(np.uint8([[canopy_color]]), cv2.COLOR_BGR2HSV)[0][0]
-    walls_color_hsv = cv2.cvtColor(np.uint8([[walls_color]]), cv2.COLOR_BGR2HSV)[0][0]
+    left_slope_color_hsv = cv2.cvtColor(np.uint8([[peak_colors.left]]), cv2.COLOR_BGR2HSV)[0][0]
+    right_slope_color_hsv = cv2.cvtColor(np.uint8([[peak_colors.right]]), cv2.COLOR_BGR2HSV)[0][0]
+    front_slope_color_hsv = cv2.cvtColor(np.uint8([[peak_colors.front]]), cv2.COLOR_BGR2HSV)[0][0]
+    back_slope_color_hsv = cv2.cvtColor(np.uint8([[peak_colors.back]]), cv2.COLOR_BGR2HSV)[0][0]
+    left_canopy_color_hsv = cv2.cvtColor(np.uint8([[valence_colors.left]]), cv2.COLOR_BGR2HSV)[0][0]
+    right_canopy_color_hsv = cv2.cvtColor(np.uint8([[valence_colors.right]]), cv2.COLOR_BGR2HSV)[0][0]
+    back_canopy_color_hsv = cv2.cvtColor(np.uint8([[valence_colors.back]]), cv2.COLOR_BGR2HSV)[0][0]
+    front_canopy_color_hsv = cv2.cvtColor(np.uint8([[valence_colors.front]]), cv2.COLOR_BGR2HSV)[0][0]
+    if (walls_color is not None):
+        walls_color_hsv = cv2.cvtColor(np.uint8([[walls_color]]), cv2.COLOR_BGR2HSV)[0][0]
 
     # Apply colors for different regions
     for region, points in config.items():
@@ -154,11 +161,26 @@ def apply_color(tent_image, config, slope_color=DEFAULT_TENT_COLOR, canopy_color
         cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
         
         if "slope" in region:
-            tent_image = apply_region_color(mask, slope_color_hsv)
+            if "left" in region:
+                tent_image = apply_region_color(mask, left_slope_color_hsv)
+            elif "right" in region:
+                tent_image = apply_region_color(mask, right_slope_color_hsv)
+            elif "back" in region:
+                tent_image = apply_region_color(mask, back_slope_color_hsv)
+            else:
+                tent_image = apply_region_color(mask, front_slope_color_hsv)
         elif "canopy" in region:
-            tent_image = apply_region_color(mask, canopy_color_hsv)
-        else: 
-            tent_image = apply_region_color(mask, walls_color_hsv)
+            if "left" in region:
+                tent_image = apply_region_color(mask, left_canopy_color_hsv)
+            elif "right" in region:
+                tent_image = apply_region_color(mask, right_canopy_color_hsv)
+            elif "back" in region:
+                tent_image = apply_region_color(mask, back_canopy_color_hsv)
+            else:
+                tent_image = apply_region_color(mask, front_canopy_color_hsv)
+        else:
+            if (walls_color is not None and walls_color_hsv is not None):
+                tent_image = apply_region_color(mask, walls_color_hsv)
 
     return tent_image
 
@@ -263,9 +285,10 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: 
     if response.status_code != 200:
         raise HTTPException(status_code=404, detail=f"Tent image {tent_type} not found.")
     
-    template = cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR)
-    template = color_template(template, overlay_data.walls_primary_color, overlay_data.walls_secondary_color, overlay_data.walls_tertiary_color)
-    
+    if (overlay_data.walls and overlay_data.walls.primary and overlay_data.walls.secondary and overlay_data.walls.tertiary):
+        template = cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR)
+        template = color_template(template, overlay_data.walls.primary, overlay_data.walls.secondary, overlay_data.walls.tertiary)
+        
     for tent_type, tent_path in TENT_MOCKUPS.items():
         
         response = requests.get(tent_path)
@@ -284,15 +307,27 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: 
             for mask_key, mask_coordinates in masks.items():
                 extracted_masks[mask_key] = extract_masks(tent_image, mask_coordinates)
                 
+        if (overlay_data.walls and overlay_data.walls.primary):
+            walls_color = overlay_data.walls.primary
+        else:
+            walls_color = None
+                
         tent_image = apply_color(tent_image, color_coordinates, 
-                        slope_color=overlay_data.slope_color, 
-                        canopy_color=overlay_data.canopy_color, 
-                        walls_color=overlay_data.walls_primary_color)
+                        peak_colors=overlay_data.peaks, 
+                        valence_colors=overlay_data.valences, 
+                        walls_color=walls_color)
         
         for logo_key, logo_value in logos.items():
             overlay_image = logo_image
             if "text" in logo_key:
-                overlay_image = create_text_image(overlay_data.text, font_color=overlay_data.font_color)
+                if "left" in logo_key:
+                    overlay_image = create_text_image(overlay_data.text.left, font_color=overlay_data.font_color)
+                elif 'right' in logo_key:
+                    overlay_image = create_text_image(overlay_data.text.right, font_color=overlay_data.font_color)
+                elif "back" in logo_key:
+                    overlay_image = create_text_image(overlay_data.text.back, font_color=overlay_data.font_color)
+                else: 
+                    overlay_image = create_text_image(overlay_data.text.front, font_color=overlay_data.font_color)
                 
             coordinates = logo_value.get("coordinates")
             scale = logo_value.get("scale")
