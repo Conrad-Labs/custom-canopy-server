@@ -29,7 +29,7 @@ def validate_color(color_str: str, optional=False):
 async def create_mockups(
     logo: UploadFile = File(...),
     peaks_front: str = Form(
-        f"'{DEFAULT_TENT_COLOR}'", 
+        f'"{DEFAULT_TENT_COLOR}"', 
         description="Front color for peaks. Must be a string representation of a list of three integers representing the BGR color value.",
         example=f'"{DEFAULT_TENT_COLOR}"'
     ),
@@ -49,7 +49,7 @@ async def create_mockups(
         example=f'"{DEFAULT_TENT_COLOR}"'
     ),
     valences_front: str = Form(
-        f"'{DEFAULT_TENT_COLOR}'", 
+        f'"{DEFAULT_TENT_COLOR}"', 
         description="Front color for valences. Must be a string representation of a list of three integers representing the BGR color value.",
         example=f'"{DEFAULT_TENT_COLOR}"'
     ),
