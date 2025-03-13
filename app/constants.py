@@ -15,6 +15,7 @@ TENT_MOCKUPS = {
     "half-wall": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-half-wall-YB36f9zdXBc7US0wwVkptbr8ilmGVg.png",
     "top-view": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-top-view-MDMODEv31VWZkrTotyIGGYgAhboYAH.png"
 }
+DEFAULT_OUTPUT_DIR = "mockups"
 
 SLOPE_CENTERS = {
     "top": (500, 258),

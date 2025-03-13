@@ -1,5 +1,4 @@
 import io
-import zipfile
 import cv2
 from fastapi import HTTPException
 import requests
@@ -7,6 +6,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from app.schema import OverlayRequest
 from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS, SLOPE_CENTERS, DEFAULT_FONT_URL, DEFAULT_TEMPLATE_URL
+from vercel_storage import blob
 
 # Helper function to create an image to overlay text on mockup
 def create_text_image(
@@ -254,7 +254,7 @@ def color_template(template, walls_primary_color, walls_secondary_color, walls_t
 
 
 # Main function that applies logos and generates a mockup based on user requirements
-def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: zipfile.ZipFile):
+def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes):
     """Generates canopy mockups based on user requirements of base color, text, font color, etc"""
     logo_array = np.frombuffer(logo_content, np.uint8)
     logo_image = cv2.imdecode(logo_array, cv2.IMREAD_UNCHANGED)
@@ -265,7 +265,7 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: 
     
     template = cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR)
     template = color_template(template, overlay_data.walls_primary_color, overlay_data.walls_secondary_color, overlay_data.walls_tertiary_color)
-    
+    generated_mockups = {}
     for tent_type, tent_path in TENT_MOCKUPS.items():
         
         response = requests.get(tent_path)
@@ -314,7 +314,6 @@ def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: 
                 
         is_success, buffer = cv2.imencode(".jpg", tent_image)
         if is_success:
-            zipfile.writestr(f"output_{tent_type}.jpg", buffer.tobytes())
-        
-         
-        
+            blob_url = blob.put(f"{overlay_data.output_dir}/output_{tent_type}.jpg", buffer.tobytes(), {})
+            generated_mockups[tent_type] = blob_url
+    return generated_mockups

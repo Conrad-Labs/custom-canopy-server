@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List
-from app.constants import DEFAULT_TEXT, DEFAULT_TENT_COLOR, DEFAULT_FONT_COLOUR, DEFAULT_IS_PATTERNED
+from app.constants import DEFAULT_TEXT, DEFAULT_TENT_COLOR, DEFAULT_FONT_COLOUR, DEFAULT_IS_PATTERNED, DEFAULT_OUTPUT_DIR
 
 class OverlayRequest(BaseModel):
     slope_color: Optional[List[int]] = DEFAULT_TENT_COLOR
@@ -11,3 +11,4 @@ class OverlayRequest(BaseModel):
     text: Optional[str] = DEFAULT_TEXT
     font_color: Optional[List[int]] = DEFAULT_FONT_COLOUR
     is_patterned: Optional[str] = DEFAULT_IS_PATTERNED
+    output_dir: Optional[str] = DEFAULT_OUTPUT_DIR
