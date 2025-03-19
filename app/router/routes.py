@@ -23,7 +23,7 @@ async def create_mockups(
     patterned: str = Form('false')
 ):
     """
-    Create mockups for canopy layouts with the provided logo, colour, and text, if any.
+    Create mockups for canopy layouts with the provided logo, colour, and text, if any
     """
     try:
         slope_color = json.loads(slope_color)
@@ -56,7 +56,7 @@ async def create_mockups(
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w") as zip_file:
             apply_all_logos(overlay_data, logo_content, zip_file)
-
+    
         zip_buffer.seek(0)
         return StreamingResponse(
             zip_buffer,
