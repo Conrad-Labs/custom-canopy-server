@@ -187,37 +187,38 @@ def apply_color(mockup_image, config, overlay_data: OverlayRequest):
         reg = getattr(overlay_data, region)
         for side, points in sides.items():
             target_color = getattr(reg, side) if hasattr(reg, side) else reg
-            if isinstance(points, dict):
-                points = points.values()
-                for point in points:
-                    mask = np.zeros(mockup_image.shape[:2], dtype=np.uint8)
-                    if isinstance(point, dict):
-                        if "circle" in point:
-                            circle = point.get("circle")
-                            center = circle.get("center")
-                            axes = circle.get("axes")
-                            angle = circle.get("angle")
-                            start_angle = circle.get("start_angle")
-                            end_angle = circle.get("end_angle")
-                            mask = np.zeros(mockup_image.shape[:2], dtype=np.uint8)
-                            cv2.ellipse(
-                                mask,
-                                center,
-                                axes,
-                                angle,
-                                start_angle,
-                                end_angle,
-                                255,
-                                thickness=-1,
-                            )
-                    else:
-                        cv2.fillPoly(mask, [np.array(point, np.int32)], 255)
+            if target_color is not None:
+                if isinstance(points, dict):
+                    points = points.values()
+                    for point in points:
+                        mask = np.zeros(mockup_image.shape[:2], dtype=np.uint8)
+                        if isinstance(point, dict):
+                            if "circle" in point:
+                                circle = point.get("circle")
+                                center = circle.get("center")
+                                axes = circle.get("axes")
+                                angle = circle.get("angle")
+                                start_angle = circle.get("start_angle")
+                                end_angle = circle.get("end_angle")
+                                mask = np.zeros(mockup_image.shape[:2], dtype=np.uint8)
+                                cv2.ellipse(
+                                    mask,
+                                    center,
+                                    axes,
+                                    angle,
+                                    start_angle,
+                                    end_angle,
+                                    255,
+                                    thickness=-1,
+                                )
+                        else:
+                            cv2.fillPoly(mask, [np.array(point, np.int32)], 255)
 
+                        mockup_image = apply_region_color(mask, target_color)
+                else:
+                    mask = np.zeros(mockup_image.shape[:2], dtype=np.uint8)
+                    cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
                     mockup_image = apply_region_color(mask, target_color)
-            else:
-                mask = np.zeros(mockup_image.shape[:2], dtype=np.uint8)
-                cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
-                mockup_image = apply_region_color(mask, target_color)
 
     return mockup_image
 

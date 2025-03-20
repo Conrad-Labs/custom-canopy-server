@@ -12,7 +12,7 @@ MOCKUP_ITEMS = {
     "tents": [
         {
             "name": "front-wall",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-front-wall-2023-09-12-14-03-49.png",
+            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-front-PUClMH37WQ9ZeE441ENcj5OfQsIBeg.png",
             "include_conditions": {"tent_type": "half-walls"},
         },
         {
@@ -48,7 +48,7 @@ SLOPE_CENTERS = {
 }
 
 OVERLAY_CONFIGURATIONS = {
-    "front": {
+    "front-wall": {
         "logos": {
             "panels": {
                 "back": {
@@ -272,7 +272,7 @@ OVERLAY_CONFIGURATIONS = {
         },
         "color-coordinates": {
             "panels": {
-                "front": [(2074, 1295), (3461, 1260), (3467, 2010), (2072, 2070)],
+                "back": [(2074, 1295), (3461, 1260), (3467, 2010), (2072, 2070)],
                 "left": [
                     (608, 2006),
                     (2012, 1960),

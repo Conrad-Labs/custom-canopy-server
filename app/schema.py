@@ -17,7 +17,7 @@ class Side(str, Enum):
     bottom = "bottom"
 
 class TentSides(BaseModel):
-    front: List[int] = Field(DEFAULT_TENT_COLOR, description="Front color is required.")
+    front: Optional[List[int]] = None
     left: Optional[List[int]] = None
     right: Optional[List[int]] = None
     back: Optional[List[int]] = None
@@ -58,7 +58,8 @@ class OverlayRequest(BaseModel):
 
     @model_validator(mode="before")
     def set_tent_type(cls, values):
-        panel_states = {side: getattr(values.get("panels"), side.value) for side in Side}
+        primary_sides = [Side.front, Side.back, Side.left, Side.right]
+        panel_states = {side: getattr(values.get("panels"), side.value) for side in primary_sides}
         if all(panel_states.values()):
             values["tent_type"] = TentTypes.full_walls
         elif panel_states[Side.front] is None and all(

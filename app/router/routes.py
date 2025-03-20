@@ -70,17 +70,14 @@ async def create_mockups(
     panels_back: Optional[str] = Form(
         "",
         description="Back color for panel. Must be a string representation of a list of three integers representing the BGR color value",
-        example=f'"{DEFAULT_TENT_COLOR}"',
     ),
     panels_left: Optional[str] = Form(
         "",
         description="Left color for panel. Must be a string representation of a list of three integers representing the BGR color value",
-        example=f'"{DEFAULT_TENT_COLOR}"',
     ),
     panels_right: Optional[str] = Form(
         "",
         description="Right color for panel. Must be a string representation of a list of three integers representing the BGR color value",
-        example=f'"{DEFAULT_TENT_COLOR}"',
     ),
     text_color: str = Form(
         f'"{DEFAULT_FONT_COLOUR}"',
@@ -140,11 +137,9 @@ async def create_mockups(
             back=validate_color(valences_back, optional=True) or validate_color(valences_front),
         )
         panels = TentSides(
-            back=validate_color(panels_back),
-            left=validate_color(panels_left, optional=True)
-            or validate_color(panels_left),
+            back=validate_color(panels_back, optional=True),
+            left=validate_color(panels_left, optional=True),
             right=validate_color(panels_right, optional=True)
-            or validate_color(panels_right),
         )
 
         addons = (
