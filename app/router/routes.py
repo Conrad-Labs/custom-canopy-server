@@ -1,14 +1,13 @@
 import io
 import json
-from typing import List, Optional
+from typing import Optional
 import zipfile
 
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import Field
-from app.schema import OverlayRequest, TentSides, ValencesText, WallsColors
-from app.services.image_processor import apply_all_logos
-from app.constants import DEFAULT_IS_PATTERNED, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, DEFAULT_TEXT
+from app.schema import OverlayRequest, TentSides, ValencesText, AddOns, Table
+from app.services.image_processor import generate_mockups
+from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, DEFAULT_TEXT
 
 router = APIRouter()
 
@@ -68,25 +67,20 @@ async def create_mockups(
         description="Back color for valences. Defaults to the same as valences_front if not provided.",
         example=f'"{DEFAULT_TENT_COLOR}"'
     ),
-    is_patterned: str = Form(
-        "false",
-        description="Indicates whether the tent is patterned. Use 'true' or 'false'.",
-        example=DEFAULT_IS_PATTERNED
-    ),
-    walls_primary: Optional[str] = Form(
+    panels_back: Optional[str] = Form(
         "",
-        description="Primary wall color. Required if is_patterned is True, defaults to None otherwise (walls will not be colored). Must be a string representation of a list of three integers representing the BGR color value.",
-        example=f'"{DEFAULT_TENT_COLOR}"'
+        description="Back color for panel. Must be a string representation of a list of three integers representing the BGR color value",
+        example=f'"{DEFAULT_TENT_COLOR}"',
     ),
-    walls_secondary: Optional[str] = Form(
+    panels_left: Optional[str] = Form(
         "",
-        description="Secondary wall color. Required if is_patterned is True, defaults to walls_primary if provided, otherwise None. Must be a string representation of a list of three integers representing the BGR color value.",
-        example=f'"{DEFAULT_TENT_COLOR}"'
+        description="Left color for panel. Must be a string representation of a list of three integers representing the BGR color value",
+        example=f'"{DEFAULT_TENT_COLOR}"',
     ),
-    walls_tertiary: Optional[str] = Form(
+    panels_right: Optional[str] = Form(
         "",
-        description="Tertiary wall color. Required if is_patterned is True, defaults to walls_primary if provided, otherwise None. Must be a string representation of a list of three integers representing the BGR color value.",
-        example=f'"{DEFAULT_TENT_COLOR}"'
+        description="Right color for panel. Must be a string representation of a list of three integers representing the BGR color value",
+        example=f'"{DEFAULT_TENT_COLOR}"',
     ),
     text_color: str = Form(
         f'"{DEFAULT_FONT_COLOUR}"',
@@ -111,8 +105,13 @@ async def create_mockups(
     right_text: Optional[str] = Form(
         '',
         description="Text to be added to the right valence of the canopy.",
-        example=DEFAULT_TEXT
-    )
+        example=DEFAULT_TEXT,
+    ),
+    table_color: Optional[str] = Form(
+        "",
+        description="Color for the table. Must be a string representation of a list of three integers representing the BGR color value.",
+        example=f'"{DEFAULT_TENT_COLOR}"',
+    ),
 ):
     """
     Create mockups for canopy layouts with the provided logo, colours, and text, if any.
@@ -140,27 +139,34 @@ async def create_mockups(
             right=validate_color(valences_right, optional=True) or validate_color(valences_front),
             back=validate_color(valences_back, optional=True) or validate_color(valences_front),
         )
+        panels = TentSides(
+            back=validate_color(panels_back),
+            left=validate_color(panels_left, optional=True)
+            or validate_color(panels_left),
+            right=validate_color(panels_right, optional=True)
+            or validate_color(panels_right),
+        )
 
-        walls = None
-        if is_patterned.lower() == "true":
-            if not (walls_primary and walls_secondary and walls_tertiary):
-                raise HTTPException(
-                    status_code=400, detail="All walls colors (primary, secondary, tertiary) are required if patterned."
-                )
-            walls = WallsColors(primary=validate_color(walls_primary), secondary=validate_color(walls_secondary), tertiary=validate_color(walls_tertiary))
-        elif walls_primary: 
-            walls = WallsColors(
-                primary=validate_color(walls_primary),
-                secondary=validate_color(walls_secondary, optional=True) or validate_color(walls_primary),
-                tertiary=validate_color(walls_tertiary, optional=True) or validate_color(walls_primary)
-            )
-        logo_content = await logo.read()        
-        overlay_data = OverlayRequest(peaks=peaks, valences=valences, walls=walls, font_color=font_color, is_patterned=f"{is_patterned}", text=text)
+        addons = (
+            AddOns(table=Table(sides=TentSides(front=validate_color(table_color))))
+            if table_color
+            else None
+        )
+
+        logo_content = await logo.read()
+        overlay_data = OverlayRequest(
+            peaks=peaks,
+            valences=valences,
+            panels=panels,
+            font_color=font_color,
+            text=text,
+            add_ons=addons,
+        )
 
         # Process images and create zip
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-            apply_all_logos(overlay_data, logo_content, zip_file)
+            generate_mockups(overlay_data, logo_content, zip_file)
 
         zip_buffer.seek(0)
         return StreamingResponse(
