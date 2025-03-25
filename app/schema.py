@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, model_validator
 from typing import Optional, List
 from enum import Enum
-from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR
+from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_OUTPUT_DIR
 
 class TentTypes(str, Enum):
     no_walls = "no-walls"
@@ -55,6 +55,7 @@ class OverlayRequest(BaseModel):
     text: ValencesText
     add_ons: Optional[AddOns] = None
     tent_type: TentTypes
+    output_dir: Optional[str] = DEFAULT_OUTPUT_DIR
 
     @model_validator(mode="before")
     def set_tent_type(cls, values):

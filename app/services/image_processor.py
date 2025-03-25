@@ -1,5 +1,4 @@
 import io
-import zipfile
 import cv2
 from fastapi import HTTPException
 import requests
@@ -15,9 +14,11 @@ from app.constants import (
     DEFAULT_FONT_COLOUR,
     DEFAULT_FONT_URL,
     MOCKUP_ITEMS,
+    DEFAULT_OUTPUT_DIR,
 )
 from typing import List, Dict, Any
 from enum import Enum
+from vercel_storage import blob
 
 
 # Helper function to create an image to overlay text on mockup
@@ -27,8 +28,8 @@ def create_text_image(
     font_color=DEFAULT_FONT_COLOUR,
     padding=DEFAULT_PADDING,
     rotation_angle=DEFAULT_ROTATION_ANGLE,
-    font_url=DEFAULT_FONT_URL
-    ):
+    font_url=DEFAULT_FONT_URL,
+):
     """
     Creates an image for the text provided by the user with the specified font size, color, padding, and rotation angle.
     The text image can then be overlaid onto the mockup like any other image.
@@ -36,11 +37,13 @@ def create_text_image(
     """
     if not font_url:
         raise ValueError("Font URL must be provided.")
-    
+
     response = requests.get(font_url)
     if response.status_code != 200:
-        raise Exception(f"Failed to fetch the font file. Status code: {response.status_code}")
-    
+        raise Exception(
+            f"Failed to fetch the font file. Status code: {response.status_code}"
+        )
+
     font_bytes = io.BytesIO(response.content)
     font = ImageFont.truetype(font_bytes, font_size)
     font_color_rgba = (font_color[2], font_color[1], font_color[0], 255)
@@ -48,8 +51,8 @@ def create_text_image(
     dummy_img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
     draw = ImageDraw.Draw(dummy_img)
     text_bbox = draw.textbbox((0, 0), text, font=font)
-    text_width = (text_bbox[2] - text_bbox[0])
-    text_height = (text_bbox[3] - text_bbox[1])
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
 
     canvas_size = (text_width + 2 * padding, text_height + 2 * padding)
     container = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
@@ -63,8 +66,7 @@ def create_text_image(
         container = container.rotate(rotation_angle, expand=True)
 
     downscaled_container = container.resize(
-        (canvas_size[0], canvas_size[1]),
-        Image.LANCZOS
+        (canvas_size[0], canvas_size[1]), Image.LANCZOS
     )
 
     return cv2.cvtColor(np.array(downscaled_container), cv2.COLOR_RGBA2BGRA)
@@ -86,12 +88,22 @@ def extract_masks(mockup_image, coordinates):
         x_max = int(max([pt[0] for pt in coordinates]))
         y_max = int(max([pt[1] for pt in coordinates]))
 
-        dst_points = np.array([[0, 0], [x_max - x_min, 0], [x_max - x_min, y_max - y_min], [0, y_max - y_min]], dtype="float32")
+        dst_points = np.array(
+            [
+                [0, 0],
+                [x_max - x_min, 0],
+                [x_max - x_min, y_max - y_min],
+                [0, y_max - y_min],
+            ],
+            dtype="float32",
+        )
 
         M = cv2.getPerspectiveTransform(src_points, dst_points)
         extracted = cv2.warpPerspective(mockup_image, M, (x_max - x_min, y_max - y_min))
     else:
-        raise ValueError("Invalid coordinates provided for mask extraction. Must be 2 points (x1, y1, x2, y2) or 4 points for a quadrilateral.")
+        raise ValueError(
+            "Invalid coordinates provided for mask extraction. Must be 2 points (x1, y1, x2, y2) or 4 points for a quadrilateral."
+        )
 
     return extracted
 
@@ -105,8 +117,15 @@ def overlay_masks(mockup_image, extracted_mask, coordinates):
         (x1, y1), (x2, y2) = coordinates
         mockup_image[y1:y2, x1:x2] = extracted_mask
     elif len(coordinates) == 4:
-        src_points = np.array([[0, 0], [extracted_mask.shape[1], 0], 
-                               [extracted_mask.shape[1], extracted_mask.shape[0]], [0, extracted_mask.shape[0]]], dtype="float32")
+        src_points = np.array(
+            [
+                [0, 0],
+                [extracted_mask.shape[1], 0],
+                [extracted_mask.shape[1], extracted_mask.shape[0]],
+                [0, extracted_mask.shape[0]],
+            ],
+            dtype="float32",
+        )
         dst_points = np.array(coordinates, dtype="float32")
 
         M = cv2.getPerspectiveTransform(src_points, dst_points)
@@ -130,18 +149,13 @@ def overlay_masks(mockup_image, extracted_mask, coordinates):
 
 
 # Helper functions to apply logos to a mockup
-def scale_quadrilateral(coordinates, scale):
-    """Scales a quadrilateral around its centroid by the given scale factor."""
-    centroid_x = int(np.mean([p[0] for p in coordinates]))
-    centroid_y = int(np.mean([p[1] for p in coordinates]))
+def scale_quadrilateral(pts, scale_factor):
+    """Scales a quadrilateral inward toward its centroid."""
+    pts = np.array(pts, dtype="float32")  # Ensure `pts` is a NumPy array
+    centroid = np.mean(pts, axis=0)       # Calculate the centroid as a NumPy array
+    scaled_pts = (1 - scale_factor) * centroid + scale_factor * pts
+    return scaled_pts
 
-    scaled_coordinates = []
-    for (x, y) in coordinates:
-        scaled_x = int(centroid_x + scale * (x - centroid_x))
-        scaled_y = int(centroid_y + scale * (y - centroid_y))
-        scaled_coordinates.append((scaled_x, scaled_y))
-
-    return scaled_coordinates
 
 
 def convert_color_to_hsv(color):
@@ -158,6 +172,8 @@ def convert_overlay_colors(overlay_data: OverlayRequest):
     process_overlay_colors(overlay_data.peaks)
     process_overlay_colors(overlay_data.valences)
     process_overlay_colors(overlay_data.panels)
+    if overlay_data.add_ons and overlay_data.add_ons.table:
+        process_overlay_colors(overlay_data.add_ons.table.sides)
     return overlay_data
 
 
@@ -226,10 +242,16 @@ def apply_color(mockup_image, config, overlay_data: OverlayRequest):
 def overlay_logo(mockup_image, logo_img, coordinates, scale=0.4):
     """Overlays a perspective-transformed logo within a scaled quadrilateral region on the tent image."""
     scaled_coordinates = scale_quadrilateral(coordinates, scale)
-    src_points = np.array([[0, 0], [logo_img.shape[1], 0], 
-                           [logo_img.shape[1], logo_img.shape[0]], [0, logo_img.shape[0]]], dtype="float32")
+    src_points = np.array(
+        [
+            [0, 0],
+            [logo_img.shape[1], 0],
+            [logo_img.shape[1], logo_img.shape[0]],
+            [0, logo_img.shape[0]],
+        ],
+        dtype="float32",
+    )
     dst_points = np.array(scaled_coordinates, dtype="float32")
-
 
     if logo_img.shape[2] == 4:
         b, g, r, a = cv2.split(logo_img)
@@ -237,7 +259,9 @@ def overlay_logo(mockup_image, logo_img, coordinates, scale=0.4):
         alpha_mask = cv2.merge((a, a, a))
     else:
         logo_rgb = logo_img
-        alpha_mask = np.ones((logo_img.shape[0], logo_img.shape[1], 3), dtype=np.uint8) * 255
+        alpha_mask = (
+            np.ones((logo_img.shape[0], logo_img.shape[1], 3), dtype=np.uint8) * 255
+        )
 
     M = cv2.getPerspectiveTransform(src_points, dst_points)
     warped_logo = cv2.warpPerspective(
@@ -251,10 +275,10 @@ def overlay_logo(mockup_image, logo_img, coordinates, scale=0.4):
     _, mask = cv2.threshold(mask_gray, 1, 255, cv2.THRESH_BINARY)
     mask_inv = cv2.bitwise_not(mask)
 
-    x_min = max(0, min([pt[0] for pt in scaled_coordinates]))
-    y_min = max(0, min([pt[1] for pt in scaled_coordinates]))
-    x_max = min(mockup_image.shape[1], max([pt[0] for pt in scaled_coordinates]))
-    y_max = min(mockup_image.shape[0], max([pt[1] for pt in scaled_coordinates]))
+    x_min = max(0, int(min(dst_points[:, 0])))
+    y_min = max(0, int(min(dst_points[:, 1])))
+    x_max = min(mockup_image.shape[1], int(max(dst_points[:, 0])))
+    y_max = min(mockup_image.shape[0], int(max(dst_points[:, 1])))
 
     roi = mockup_image[y_min:y_max, x_min:x_max]
 
@@ -263,7 +287,9 @@ def overlay_logo(mockup_image, logo_img, coordinates, scale=0.4):
     mask_inv_cropped = mask_inv[y_min:y_max, x_min:x_max]
 
     mockup_bg = cv2.bitwise_and(roi, roi, mask=mask_inv_cropped)
-    logo_fg = cv2.bitwise_and(warped_logo_cropped, warped_logo_cropped, mask=mask_cropped)
+    logo_fg = cv2.bitwise_and(
+        warped_logo_cropped, warped_logo_cropped, mask=mask_cropped
+    )
 
     dst = cv2.add(mockup_bg, logo_fg)
     mockup_image[y_min:y_max, x_min:x_max] = dst
@@ -328,13 +354,12 @@ def filter_mockup_items(request_data: Dict[str, Any]) -> Dict[str, List[Dict]]:
     }
 
 
-def generate_mockups(
-    overlay_data: OverlayRequest, logo_content: bytes, zipfile: zipfile.ZipFile
-):
+def generate_mockups(overlay_data: OverlayRequest, logo_content: bytes):
     """Generates canopy mockups based on user requirements of base color, text, font color, etc."""
     logo_image = preprocess_logo(logo_content)
     overlay_data = convert_overlay_colors(overlay_data)
     mockups = filter_mockup_items(overlay_data.model_dump())
+    generate_mockups = {}
     for category, items in mockups.items():
         for item in items:
             config = (
@@ -342,17 +367,25 @@ def generate_mockups(
                 if category == "add_ons"
                 else OVERLAY_CONFIGURATIONS
             )
-            generate_single_mockup(
+            name = item.get("name")
+            generate_mockups[name] = generate_single_mockup(
                 item,
                 config,
                 (
-                    getattr(getattr(overlay_data, category), item.get("name"))
+                    getattr(getattr(overlay_data, category), name)
                     if category == "add_ons"
                     else overlay_data
                 ),
                 logo_image,
-                zipfile,
+                overlay_data.output_dir,
+                font_size=(
+                    (DEFAULT_FONT_SIZE + 12)
+                    if name == "top-view"
+                    else DEFAULT_FONT_SIZE
+                ),
             )
+
+    return generate_mockups
 
 
 def generate_single_mockup(
@@ -360,7 +393,8 @@ def generate_single_mockup(
     config: dict,
     data: Dict[str, Any],
     logo_image: Image,
-    zipfile: zipfile.ZipFile,
+    output_dir: str = DEFAULT_OUTPUT_DIR,
+    font_size: int = DEFAULT_FONT_SIZE,
 ):
     name = item.get("name")
     mockup_image = fetch_mockup_image(name, item.get("url"))
@@ -370,14 +404,14 @@ def generate_single_mockup(
     extracted_masks = extract_all_masks(mockup_image, masks)
     mockup_image = apply_color(mockup_image, case_config.get("color-coordinates"), data)
     mockup_image = apply_all_logos(
-        mockup_image, data, logo_image, case_config.get("logos")
+        mockup_image, data, logo_image, case_config.get("logos"), font_size
     )
     if len(extracted_masks) > 0:
         for mask_key, mask_coordinates in masks.items():
             mockup_image = overlay_masks(
                 mockup_image, extracted_masks.get(mask_key), mask_coordinates
             )
-    save_mockup_image_to_zip(mockup_image, zipfile, name)
+    return save_mockup_image(mockup_image, name, output_dir)
 
 
 def preprocess_logo(logo_content: bytes) -> np.ndarray:
@@ -408,12 +442,15 @@ def apply_all_logos(
     overlay_data: OverlayRequest,
     logo_image: np.ndarray,
     logo_config: dict,
+    font_size: int = DEFAULT_FONT_SIZE,
 ) -> np.ndarray:
     """Applies all logos to the tent images."""
     for region, sub_region in logo_config.items():
         for sub_region_key, side in sub_region.items():
             if sub_region_key == "text":
-                mockup_image = apply_text_logos(mockup_image, overlay_data, side)
+                mockup_image = apply_text_logos(
+                    mockup_image, overlay_data, side, font_size
+                )
             else:
                 mockup_image = apply_logo_images(mockup_image, logo_image, side)
 
@@ -421,12 +458,17 @@ def apply_all_logos(
 
 
 def apply_text_logos(
-    mockup_image: np.ndarray, overlay_data: OverlayRequest, texts: dict
+    mockup_image: np.ndarray,
+    overlay_data: OverlayRequest,
+    texts: dict,
+    font_size: int = DEFAULT_FONT_SIZE,
 ) -> np.ndarray:
     """Overlays text-based logos on the tent image."""
     for logo_key, logo_value in texts.items():
         text = getattr(overlay_data.text, logo_key, DEFAULT_TEXT)
-        overlay_image = create_text_image(text, font_color=overlay_data.font_color)
+        overlay_image = create_text_image(
+            text, font_color=overlay_data.font_color, font_size=font_size
+        )
         coordinates, scale = logo_value.get("coordinates"), logo_value.get("scale")
         mockup_image = overlay_logo(
             mockup_image, overlay_image, coordinates=coordinates, scale=scale
@@ -455,12 +497,13 @@ def apply_logo_images(
     return mockup_image
 
 
-def save_mockup_image_to_zip(
-    mockup_image: np.ndarray, zipfile: zipfile.ZipFile, name: str
+def save_mockup_image(
+    mockup_image: np.ndarray,
+    name: str,
+    output_dir: str = DEFAULT_OUTPUT_DIR,
 ) -> None:
-    """Encodes the tent image and writes it to the zip file."""
+    """Encodes the tent image and stores it in the blob storage."""
     is_success, buffer = cv2.imencode(".jpg", mockup_image)
     if is_success:
-        zipfile.writestr(f"output_{name}.jpg", buffer.tobytes())
-        
-        
+        return blob.put(f"{output_dir}/output_{name}.jpg", buffer.tobytes(), {})
+    return None

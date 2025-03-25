@@ -1,13 +1,13 @@
 CONRAD_TEXT = "CONRAD LABS | CONRADLABS.COM"
 DEFAULT_TEXT = ""
-DEFAULT_FONT_SIZE = 25
+DEFAULT_FONT_SIZE = 24
 DEFAULT_PADDING = 10
 DEFAULT_ROTATION_ANGLE = 0
 DEFAULT_FONT_COLOUR = [255, 255, 255]
 DEFAULT_TENT_COLOR = [0, 0, 0]
 BLUE_TENT_COLOR = [255, 233, 211]
-DEFAULT_FONT_URL = "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/fonts/arial-B9hR4qfr9oEZX8IcjHDXp6HFNq4yzz.ttf"
-
+DEFAULT_FONT_URL = "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/fonts/GeliatExtralight-6YLRq-TinYGy7vxHTopPcxvBMRTsJWvSsFjN.otf"
+DEFAULT_OUTPUT_DIR = "mockups"
 MOCKUP_ITEMS = {
     "tents": [
         {
@@ -519,13 +519,8 @@ OVERLAY_CONFIGURATIONS = {
             "logos": {
                 "sides": {
                     "front": {
-                        "coordinates": [
-                            (377, 361),
-                            (2917, 361),
-                            (3021, 1388),
-                            (277, 1388),
-                        ],
-                        "scale": 0.75,
+                        "coordinates": [(377, 361), (2917, 361), (3021, 1388), (277, 1388)],
+                        "scale": 0.5,
                     },
                 }
             },
