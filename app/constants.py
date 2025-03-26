@@ -469,17 +469,16 @@ OVERLAY_CONFIGURATIONS = {
                         "scale": 0.5,
                     },
                     "left": {
-                        "coordinates": [(161, 217), (161, 745), (101, 745), (101, 217)],
+                        "coordinates": [(101, 217), (161, 217), (161, 745), (101, 745)],
                         "scale": 0.5,
                         "rotation_angle": 270,
                     },
                     "back": {
                         "coordinates": [(767, 141), (236, 141), (236, 84), (767, 84)],
-                        "scale": 0.5,
-                        "rotation_angle": 180,
+                        "scale": 0.5
                     },
                     "right": {
-                        "coordinates": [(847, 758), (847, 220), (902, 220), (902, 758)],
+                        "coordinates": [(847, 220), (902, 220), (902, 758), (847, 758)],
                         "scale": 0.5,
                         "rotation_angle": 90,
                     },

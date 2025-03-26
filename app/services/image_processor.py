@@ -58,7 +58,11 @@ def create_text_image(
     text_width = sum(char_widths) + (len(text) - 1) * spacing 
     text_height = font.getbbox(text)[3] - font.getbbox(text)[1]
 
-    canvas_size = (text_width + 2 * padding, text_height + 2 * padding)
+    extra_padding = 4 if rotation_angle != 0 else 0
+    canvas_size = (
+        text_width + 2 * (padding + extra_padding),
+        text_height + 2 * (padding + extra_padding),
+    )
     container = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(container)
 
@@ -73,11 +77,7 @@ def create_text_image(
     if rotation_angle != 0:
         container = container.rotate(rotation_angle, expand=True)
 
-    downscaled_container = container.resize(
-        (canvas_size[0], canvas_size[1]), Image.LANCZOS
-    )
-
-    return cv2.cvtColor(np.array(downscaled_container), cv2.COLOR_RGBA2BGRA)
+    return cv2.cvtColor(np.array(container), cv2.COLOR_RGBA2BGRA)
 
 
 # Helper functions to extract and reapply masks from base mockup
@@ -477,7 +477,10 @@ def apply_text_logos(
     for logo_key, logo_value in texts.items():
         text = getattr(overlay_data.text, logo_key, DEFAULT_TEXT)
         overlay_image = create_text_image(
-            text, font_color=overlay_data.font_color, font_size=font_size
+            text,
+            font_color=overlay_data.font_color,
+            font_size=font_size,
+            rotation_angle=logo_value.get("rotation_angle", DEFAULT_ROTATION_ANGLE)
         )
         coordinates, scale = logo_value.get("coordinates"), logo_value.get("scale")
         mockup_image = overlay_logo(
