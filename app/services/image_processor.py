@@ -37,6 +37,8 @@ def create_text_image(
     """
     if not font_url:
         raise ValueError("Font URL must be provided.")
+    
+    spacing = 5
 
     response = requests.get(font_url)
     if response.status_code != 200:
@@ -50,17 +52,23 @@ def create_text_image(
 
     dummy_img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
     draw = ImageDraw.Draw(dummy_img)
-    text_bbox = draw.textbbox((0, 0), text, font=font)
-    text_width = text_bbox[2] - text_bbox[0]
-    text_height = text_bbox[3] - text_bbox[1]
+    
+    # Calculate text size manually with spacing
+    char_widths = [font.getbbox(c)[2] for c in text]
+    text_width = sum(char_widths) + (len(text) - 1) * spacing 
+    text_height = font.getbbox(text)[3] - font.getbbox(text)[1]
 
     canvas_size = (text_width + 2 * padding, text_height + 2 * padding)
     container = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(container)
 
-    text_x = (canvas_size[0] - text_width) // 2
-    text_y = (canvas_size[1] - text_height) // 2
-    draw.text((text_x, text_y), text, font=font, fill=font_color_rgba)
+    # Draw each character with spacing and boldness
+    x = padding
+    for char in text:
+        for dx in range(2):  # Simulate boldness by drawing twice
+            for dy in range(2):
+                draw.text((x + dx, padding + dy), char, font=font, fill=font_color_rgba)
+        x += font.getbbox(char)[2] + spacing
 
     if rotation_angle != 0:
         container = container.rotate(rotation_angle, expand=True)
@@ -242,57 +250,59 @@ def apply_color(mockup_image, config, overlay_data: OverlayRequest):
 def overlay_logo(mockup_image, logo_img, coordinates, scale=0.4):
     """Overlays a perspective-transformed logo within a scaled quadrilateral region on the tent image."""
     scaled_coordinates = scale_quadrilateral(coordinates, scale)
-    src_points = np.array(
-        [
-            [0, 0],
-            [logo_img.shape[1], 0],
-            [logo_img.shape[1], logo_img.shape[0]],
-            [0, logo_img.shape[0]],
-        ],
-        dtype="float32",
-    )
     dst_points = np.array(scaled_coordinates, dtype="float32")
-
-    if logo_img.shape[2] == 4:
-        b, g, r, a = cv2.split(logo_img)
-        logo_rgb = cv2.merge((b, g, r))
-        alpha_mask = cv2.merge((a, a, a))
-    else:
-        logo_rgb = logo_img
-        alpha_mask = (
-            np.ones((logo_img.shape[0], logo_img.shape[1], 3), dtype=np.uint8) * 255
-        )
-
-    M = cv2.getPerspectiveTransform(src_points, dst_points)
-    warped_logo = cv2.warpPerspective(
-        logo_rgb, M, (mockup_image.shape[1], mockup_image.shape[0])
-    )
-    warped_mask = cv2.warpPerspective(
-        alpha_mask, M, (mockup_image.shape[1], mockup_image.shape[0])
-    )
-
-    mask_gray = cv2.cvtColor(warped_mask, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(mask_gray, 1, 255, cv2.THRESH_BINARY)
-    mask_inv = cv2.bitwise_not(mask)
 
     x_min = max(0, int(min(dst_points[:, 0])))
     y_min = max(0, int(min(dst_points[:, 1])))
     x_max = min(mockup_image.shape[1], int(max(dst_points[:, 0])))
     y_max = min(mockup_image.shape[0], int(max(dst_points[:, 1])))
 
-    roi = mockup_image[y_min:y_max, x_min:x_max]
+    target_width = x_max - x_min
+    target_height = y_max - y_min
 
-    warped_logo_cropped = warped_logo[y_min:y_max, x_min:x_max]
-    mask_cropped = mask[y_min:y_max, x_min:x_max]
-    mask_inv_cropped = mask_inv[y_min:y_max, x_min:x_max]
+    h, w = logo_img.shape[:2]
+    aspect_ratio = w / h
+    if target_width / target_height > aspect_ratio:
+        new_h = target_height
+        new_w = int(aspect_ratio * new_h)
+    else:
+        new_w = target_width
+        new_h = int(new_w / aspect_ratio)
 
-    mockup_bg = cv2.bitwise_and(roi, roi, mask=mask_inv_cropped)
-    logo_fg = cv2.bitwise_and(
-        warped_logo_cropped, warped_logo_cropped, mask=mask_cropped
-    )
+    logo_img_resized = cv2.resize(logo_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
-    dst = cv2.add(mockup_bg, logo_fg)
-    mockup_image[y_min:y_max, x_min:x_max] = dst
+    canvas = np.zeros((target_height, target_width, 4), dtype=np.uint8)
+    offset_x = (target_width - new_w) // 2
+    offset_y = (target_height - new_h) // 2
+    canvas[offset_y:offset_y+new_h, offset_x:offset_x+new_w] = logo_img_resized
+
+    src_points = np.array([
+        [0, 0],
+        [target_width, 0],
+        [target_width, target_height],
+        [0, target_height],
+    ], dtype="float32")
+
+    M = cv2.getPerspectiveTransform(src_points, dst_points)
+
+    if canvas.shape[2] == 4:
+        b, g, r, a = cv2.split(canvas)
+        logo_rgb = cv2.merge((b, g, r))
+        alpha_mask = cv2.merge((a, a, a))
+    else:
+        logo_rgb = canvas
+        alpha_mask = np.ones_like(logo_rgb, dtype=np.uint8) * 255
+
+    warped_logo = cv2.warpPerspective(logo_rgb, M, (mockup_image.shape[1], mockup_image.shape[0]))
+    warped_mask = cv2.warpPerspective(alpha_mask, M, (mockup_image.shape[1], mockup_image.shape[0]))
+
+    mask_gray = cv2.cvtColor(warped_mask, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(mask_gray, 1, 255, cv2.THRESH_BINARY)
+    mask_inv = cv2.bitwise_not(mask)
+
+    roi = cv2.bitwise_and(mockup_image, mockup_image, mask=mask_inv)
+    logo_fg = cv2.bitwise_and(warped_logo, warped_logo, mask=mask)
+    mockup_image = cv2.add(roi, logo_fg)
 
     return mockup_image
 

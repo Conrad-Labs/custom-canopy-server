@@ -1,12 +1,12 @@
 CONRAD_TEXT = "CONRAD LABS | CONRADLABS.COM"
 DEFAULT_TEXT = ""
-DEFAULT_FONT_SIZE = 24
+DEFAULT_FONT_SIZE = 36
 DEFAULT_PADDING = 10
 DEFAULT_ROTATION_ANGLE = 0
 DEFAULT_FONT_COLOUR = [255, 255, 255]
 DEFAULT_TENT_COLOR = [0, 0, 0]
 BLUE_TENT_COLOR = [255, 233, 211]
-DEFAULT_FONT_URL = "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/fonts/GeliatExtralight-6YLRq-TinYGy7vxHTopPcxvBMRTsJWvSsFjN.otf"
+DEFAULT_FONT_URL = "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/fonts/GeliatExtralight-6YLRq-H5ccYOJVTzG6y1KwK6VRAVWQ8ZYKqQ.otf"
 DEFAULT_OUTPUT_DIR = "mockups"
 MOCKUP_ITEMS = {
     "tents": [
@@ -58,31 +58,31 @@ OVERLAY_CONFIGURATIONS = {
                         (2910, 2621),
                         (1090, 2621),
                     ],
-                    "scale": 0.7,
+                    "scale": 0.9,
                 },
                 "left": {
                     "coordinates": [
-                        (906, 2091),
-                        (1047, 2037),
-                        (1050, 2665),
-                        (912, 2804),
+                        (921, 2107),
+                        (1040, 2047),
+                        (1026, 2667),
+                        (894, 2746),
                     ],
-                    "scale": 0.9,
+                    "scale": 1.2,
                 },
                 "right": {
                     "coordinates": [
-                        (2966, 2050),
-                        (3097, 2099),
-                        (3093, 2801),
-                        (2961, 2655),
+                        (2974, 2092),
+                        (3100, 2121),
+                        (3089, 2665),
+                        (2961, 2601),
                     ],
-                    "scale": 0.9,
+                    "scale": 1.1,
                 },
             },
             "peaks": {
                 "top": {
-                    "coordinates": [(1665, 536), (2339, 536), (2659, 808), (1384, 808)],
-                    "scale": 1.1,
+                    "coordinates": [(1665, 486), (2339, 486), (2659, 720), (1384, 720)],
+                    "scale": 1.3
                 },
             },
             "valences": {
@@ -153,11 +153,11 @@ OVERLAY_CONFIGURATIONS = {
             "peaks": {
                 "left": {
                     "coordinates": [(1523, 469), (1879, 427), (1953, 574), (1182, 677)],
-                    "scale": 0.90,
+                    "scale": 0.9
                 },
                 "right": {
                     "coordinates": [(1948, 460), (2114, 498), (2363, 632), (2025, 551)],
-                    "scale": 1.1,
+                    "scale": 1.1
                 },
             },
             "valences": {
@@ -239,12 +239,12 @@ OVERLAY_CONFIGURATIONS = {
             },
             "peaks": {
                 "left": {
-                    "coordinates": [(1673, 535), (2015, 492), (1996, 805), (919, 881)],
-                    "scale": 1,
+                    "coordinates": [(1623, 535), (1975, 492), (1996, 785), (919, 861)],
+                    "scale": 1
                 },
                 "right": {
                     "coordinates": [(2051, 472), (2431, 505), (3148, 861), (2065, 795)],
-                    "scale": 0.9,
+                    "scale": 0.9
                 },
             },
             "valences": {
@@ -335,11 +335,11 @@ OVERLAY_CONFIGURATIONS = {
             "peaks": {
                 "left": {
                     "coordinates": [(1765, 404), (2126, 363), (2277, 632), (1027, 727)],
-                    "scale": 0.9,
+                    "scale": 0.9
                 },
                 "right": {
                     "coordinates": [(2195, 393), (2363, 434), (3053, 807), (2126, 632)],
-                    "scale": 0.9,
+                    "scale": 0.9
                 },
             },
             "valences": {
@@ -398,12 +398,12 @@ OVERLAY_CONFIGURATIONS = {
         "logos": {
             "peaks": {
                 "left": {
-                    "coordinates": [(411, 235), (525, 226), (540, 289), (191, 314)],
-                    "scale": 0.9,
+                    "coordinates": [(429, 224), (522, 218), (532, 281), (255, 307)],
+                    "scale": 1
                 },
                 "right": {
-                    "coordinates": [(532, 225), (629, 235), (814, 315), (545, 290)],
-                    "scale": 0.9,
+                    "coordinates": [(530, 216), (598, 221), (761, 298), (545, 286)],
+                    "scale": 1
                 },
             },
             "valences": {
