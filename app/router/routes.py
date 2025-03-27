@@ -118,7 +118,7 @@ async def create_mockups(
     output_dir: str = Form('"{DEFAULT_OUTPUT_DIR}"'),
 ):
     """
-    Create mockups for canopy layouts with the provided logo, colours, and text, if any.
+    Create mockups for canopy layouts with the provided logo, colour, and text, if any
     """
     try:
         font_color = validate_color(text_color)
