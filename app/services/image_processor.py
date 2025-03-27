@@ -1,12 +1,25 @@
 import io
-import zipfile
 import cv2
 from fastapi import HTTPException
 import requests
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from app.schema import OverlayRequest
-from app.constants import OVERLAY_CONFIGURATIONS, DEFAULT_TEXT, DEFAULT_FONT_SIZE, DEFAULT_PADDING, DEFAULT_ROTATION_ANGLE, DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, TENT_MOCKUPS, SLOPE_CENTERS, DEFAULT_FONT_URL, DEFAULT_TEMPLATE_URL
+from app.constants import (
+    OVERLAY_CONFIGURATIONS,
+    DEFAULT_TEXT,
+    DEFAULT_FONT_SIZE,
+    DEFAULT_PADDING,
+    DEFAULT_ROTATION_ANGLE,
+    DEFAULT_FONT_COLOUR,
+    DEFAULT_FONT_URL,
+    MOCKUP_ITEMS,
+    DEFAULT_OUTPUT_DIR,
+)
+from typing import List, Dict, Any
+from enum import Enum
+from vercel_storage import blob
+
 
 # Helper function to create an image to overlay text on mockup
 def create_text_image(
@@ -15,8 +28,8 @@ def create_text_image(
     font_color=DEFAULT_FONT_COLOUR,
     padding=DEFAULT_PADDING,
     rotation_angle=DEFAULT_ROTATION_ANGLE,
-    font_url=DEFAULT_FONT_URL
-    ):
+    font_url=DEFAULT_FONT_URL,
+):
     """
     Creates an image for the text provided by the user with the specified font size, color, padding, and rotation angle.
     The text image can then be overlaid onto the mockup like any other image.
@@ -25,48 +38,57 @@ def create_text_image(
     if not font_url:
         raise ValueError("Font URL must be provided.")
     
+    spacing = 5
+
     response = requests.get(font_url)
     if response.status_code != 200:
-        raise Exception(f"Failed to fetch the font file. Status code: {response.status_code}")
-    
+        raise Exception(
+            f"Failed to fetch the font file. Status code: {response.status_code}"
+        )
+
     font_bytes = io.BytesIO(response.content)
     font = ImageFont.truetype(font_bytes, font_size)
     font_color_rgba = (font_color[2], font_color[1], font_color[0], 255)
 
     dummy_img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
     draw = ImageDraw.Draw(dummy_img)
-    text_bbox = draw.textbbox((0, 0), text, font=font)
-    text_width = (text_bbox[2] - text_bbox[0])
-    text_height = (text_bbox[3] - text_bbox[1])
+    
+    # Calculate text size manually with spacing
+    char_widths = [font.getbbox(c)[2] for c in text]
+    text_width = sum(char_widths) + (len(text) - 1) * spacing 
+    text_height = font.getbbox(text)[3] - font.getbbox(text)[1]
 
-    canvas_size = (text_width + 2 * padding, text_height + 2 * padding)
+    extra_padding = 4 if rotation_angle != 0 else 0
+    canvas_size = (
+        text_width + 2 * (padding + extra_padding),
+        text_height + 2 * (padding + extra_padding),
+    )
     container = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(container)
 
-    text_x = (canvas_size[0] - text_width) // 2
-    text_y = (canvas_size[1] - text_height) // 2
-    draw.text((text_x, text_y), text, font=font, fill=font_color_rgba)
+    # Draw each character with spacing and boldness
+    x = padding
+    for char in text:
+        for dx in range(2):  # Simulate boldness by drawing twice
+            for dy in range(2):
+                draw.text((x + dx, padding + dy), char, font=font, fill=font_color_rgba)
+        x += font.getbbox(char)[2] + spacing
 
     if rotation_angle != 0:
         container = container.rotate(rotation_angle, expand=True)
 
-    downscaled_container = container.resize(
-        (canvas_size[0], canvas_size[1]),
-        Image.LANCZOS
-    )
-
-    return cv2.cvtColor(np.array(downscaled_container), cv2.COLOR_RGBA2BGRA)
+    return cv2.cvtColor(np.array(container), cv2.COLOR_RGBA2BGRA)
 
 
 # Helper functions to extract and reapply masks from base mockup
-def extract_masks(tent_image, coordinates):
+def extract_masks(mockup_image, coordinates):
     """
     Extracts a mask from the tent image.
     Supports both bounding box (x1, y1, x2, y2) and quadrilateral coordinates.
     """
     if len(coordinates) == 2:
         (x1, y1), (x2, y2) = coordinates
-        extracted = tent_image[y1:y2, x1:x2].copy()
+        extracted = mockup_image[y1:y2, x1:x2].copy()
     elif len(coordinates) == 4:
         src_points = np.array(coordinates, dtype="float32")
         x_min = int(min([pt[0] for pt in coordinates]))
@@ -74,247 +96,427 @@ def extract_masks(tent_image, coordinates):
         x_max = int(max([pt[0] for pt in coordinates]))
         y_max = int(max([pt[1] for pt in coordinates]))
 
-        dst_points = np.array([[0, 0], [x_max - x_min, 0], [x_max - x_min, y_max - y_min], [0, y_max - y_min]], dtype="float32")
+        dst_points = np.array(
+            [
+                [0, 0],
+                [x_max - x_min, 0],
+                [x_max - x_min, y_max - y_min],
+                [0, y_max - y_min],
+            ],
+            dtype="float32",
+        )
 
         M = cv2.getPerspectiveTransform(src_points, dst_points)
-        extracted = cv2.warpPerspective(tent_image, M, (x_max - x_min, y_max - y_min))
+        extracted = cv2.warpPerspective(mockup_image, M, (x_max - x_min, y_max - y_min))
     else:
-        raise ValueError("Invalid coordinates provided for mask extraction. Must be 2 points (x1, y1, x2, y2) or 4 points for a quadrilateral.")
+        raise ValueError(
+            "Invalid coordinates provided for mask extraction. Must be 2 points (x1, y1, x2, y2) or 4 points for a quadrilateral."
+        )
 
     return extracted
 
 
-def overlay_masks(tent_image, extracted_mask, coordinates):
+def overlay_masks(mockup_image, extracted_mask, coordinates):
     """
     Overlays the extracted mask onto the tent image.
     Supports both bounding box (x1, y1, x2, y2) and quadrilateral coordinates.
     """
     if len(coordinates) == 2:
         (x1, y1), (x2, y2) = coordinates
-        tent_image[y1:y2, x1:x2] = extracted_mask
+        mockup_image[y1:y2, x1:x2] = extracted_mask
     elif len(coordinates) == 4:
-        src_points = np.array([[0, 0], [extracted_mask.shape[1], 0], 
-                               [extracted_mask.shape[1], extracted_mask.shape[0]], [0, extracted_mask.shape[0]]], dtype="float32")
+        src_points = np.array(
+            [
+                [0, 0],
+                [extracted_mask.shape[1], 0],
+                [extracted_mask.shape[1], extracted_mask.shape[0]],
+                [0, extracted_mask.shape[0]],
+            ],
+            dtype="float32",
+        )
         dst_points = np.array(coordinates, dtype="float32")
 
         M = cv2.getPerspectiveTransform(src_points, dst_points)
-        warped_mask = cv2.warpPerspective(extracted_mask, M, (tent_image.shape[1], tent_image.shape[0]))
+        warped_mask = cv2.warpPerspective(
+            extracted_mask, M, (mockup_image.shape[1], mockup_image.shape[0])
+        )
 
         mask_gray = cv2.cvtColor(warped_mask, cv2.COLOR_BGR2GRAY)
         _, mask = cv2.threshold(mask_gray, 1, 255, cv2.THRESH_BINARY)
         mask_inv = cv2.bitwise_not(mask)
 
-        tent_bg = cv2.bitwise_and(tent_image, tent_image, mask=mask_inv)
+        mockup_bg = cv2.bitwise_and(mockup_image, mockup_image, mask=mask_inv)
         mask_fg = cv2.bitwise_and(warped_mask, warped_mask, mask=mask)
-        tent_image = cv2.add(tent_bg, mask_fg)
+        mockup_image = cv2.add(mockup_bg, mask_fg)
     else:
-        raise ValueError("Invalid coordinates provided for overlay. Must be 2 points (x1, y1, x2, y2) or 4 points for a quadrilateral.")
+        raise ValueError(
+            "Invalid coordinates provided for overlay. Must be 2 points (x1, y1, x2, y2) or 4 points for a quadrilateral."
+        )
 
-    return tent_image
+    return mockup_image
 
 
 # Helper functions to apply logos to a mockup
-def scale_quadrilateral(coordinates, scale):
-    """Scales a quadrilateral around its centroid by the given scale factor."""
-    centroid_x = int(np.mean([p[0] for p in coordinates]))
-    centroid_y = int(np.mean([p[1] for p in coordinates]))
-
-    scaled_coordinates = []
-    for (x, y) in coordinates:
-        scaled_x = int(centroid_x + scale * (x - centroid_x))
-        scaled_y = int(centroid_y + scale * (y - centroid_y))
-        scaled_coordinates.append((scaled_x, scaled_y))
-
-    return scaled_coordinates
+def scale_quadrilateral(pts, scale_factor):
+    """Scales a quadrilateral inward toward its centroid."""
+    pts = np.array(pts, dtype="float32")  # Ensure `pts` is a NumPy array
+    centroid = np.mean(pts, axis=0)       # Calculate the centroid as a NumPy array
+    scaled_pts = (1 - scale_factor) * centroid + scale_factor * pts
+    return scaled_pts
 
 
-def apply_color(tent_image, config, slope_color=DEFAULT_TENT_COLOR, canopy_color=DEFAULT_TENT_COLOR, walls_color=DEFAULT_TENT_COLOR):
+
+def convert_color_to_hsv(color):
+    return cv2.cvtColor(np.uint8([[color]]), cv2.COLOR_BGR2HSV)[0][0]
+
+
+def process_overlay_colors(obj):
+    for attr, value in obj.__dict__.items():
+        if value is not None:
+            setattr(obj, attr, convert_color_to_hsv(value))
+
+
+def convert_overlay_colors(overlay_data: OverlayRequest):
+    process_overlay_colors(overlay_data.peaks)
+    process_overlay_colors(overlay_data.valences)
+    process_overlay_colors(overlay_data.panels)
+    if overlay_data.add_ons and overlay_data.add_ons.table:
+        process_overlay_colors(overlay_data.add_ons.table.sides)
+    return overlay_data
+
+
+def apply_color(mockup_image, config, overlay_data: OverlayRequest):
     """
     Applies the chosen color to the mockup while preserving shadows and highlights.
     """
-    tent_image_hsv = cv2.cvtColor(tent_image, cv2.COLOR_BGR2HSV)
+    mockup_image_hsv = cv2.cvtColor(mockup_image, cv2.COLOR_BGR2HSV)
 
     def apply_region_color(region_mask, target_color):
-        original_v = tent_image_hsv[..., 2]
-        solid_color_hsv = np.full_like(tent_image_hsv, (target_color[0], target_color[1], 0))  # (H, S, 0)
+        original_v = mockup_image_hsv[..., 2]
+        solid_color_hsv = np.full_like(
+            mockup_image_hsv, (target_color[0], target_color[1], 0)
+        )  # (H, S, 0)
         solid_color_hsv[..., 2] = original_v
         colored_region = cv2.cvtColor(solid_color_hsv, cv2.COLOR_HSV2BGR)
-        colored_region = cv2.bitwise_and(colored_region, colored_region, mask=region_mask)
-        tent_masked = cv2.bitwise_and(tent_image, tent_image, mask=cv2.bitwise_not(region_mask))
-        return cv2.add(tent_masked, colored_region)
-
-    # Define colors in HSV
-    slope_color_hsv = cv2.cvtColor(np.uint8([[slope_color]]), cv2.COLOR_BGR2HSV)[0][0]
-    canopy_color_hsv = cv2.cvtColor(np.uint8([[canopy_color]]), cv2.COLOR_BGR2HSV)[0][0]
-    walls_color_hsv = cv2.cvtColor(np.uint8([[walls_color]]), cv2.COLOR_BGR2HSV)[0][0]
+        colored_region = cv2.bitwise_and(
+            colored_region, colored_region, mask=region_mask
+        )
+        mockup_masked = cv2.bitwise_and(
+            mockup_image, mockup_image, mask=cv2.bitwise_not(region_mask)
+        )
+        return cv2.add(mockup_masked, colored_region)
 
     # Apply colors for different regions
-    for region, points in config.items():
-        mask = np.zeros(tent_image.shape[:2], dtype=np.uint8)
-        cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
-        
-        if "slope" in region:
-            tent_image = apply_region_color(mask, slope_color_hsv)
-        elif "canopy" in region:
-            tent_image = apply_region_color(mask, canopy_color_hsv)
-        else: 
-            tent_image = apply_region_color(mask, walls_color_hsv)
+    for region, sides in config.items():
+        reg = getattr(overlay_data, region)
+        for side, points in sides.items():
+            target_color = getattr(reg, side) if hasattr(reg, side) else reg
+            if target_color is not None:
+                if isinstance(points, dict):
+                    points = points.values()
+                    for point in points:
+                        mask = np.zeros(mockup_image.shape[:2], dtype=np.uint8)
+                        if isinstance(point, dict):
+                            if "circle" in point:
+                                circle = point.get("circle")
+                                center = circle.get("center")
+                                axes = circle.get("axes")
+                                angle = circle.get("angle")
+                                start_angle = circle.get("start_angle")
+                                end_angle = circle.get("end_angle")
+                                mask = np.zeros(mockup_image.shape[:2], dtype=np.uint8)
+                                cv2.ellipse(
+                                    mask,
+                                    center,
+                                    axes,
+                                    angle,
+                                    start_angle,
+                                    end_angle,
+                                    255,
+                                    thickness=-1,
+                                )
+                        else:
+                            cv2.fillPoly(mask, [np.array(point, np.int32)], 255)
 
-    return tent_image
+                        mockup_image = apply_region_color(mask, target_color)
+                else:
+                    mask = np.zeros(mockup_image.shape[:2], dtype=np.uint8)
+                    cv2.fillPoly(mask, [np.array(points, np.int32)], 255)
+                    mockup_image = apply_region_color(mask, target_color)
+
+    return mockup_image
 
 
-def overlay_logo(tent_image, logo_img, coordinates, scale=0.4):
-    """ Overlays a perspective-transformed logo within a scaled quadrilateral region on the tent image. """
+def overlay_logo(mockup_image, logo_img, coordinates, scale=0.4):
+    """Overlays a perspective-transformed logo within a scaled quadrilateral region on the tent image."""
     scaled_coordinates = scale_quadrilateral(coordinates, scale)
-    src_points = np.array([[0, 0], [logo_img.shape[1], 0], 
-                           [logo_img.shape[1], logo_img.shape[0]], [0, logo_img.shape[0]]], dtype="float32")
     dst_points = np.array(scaled_coordinates, dtype="float32")
 
+    x_min = max(0, int(min(dst_points[:, 0])))
+    y_min = max(0, int(min(dst_points[:, 1])))
+    x_max = min(mockup_image.shape[1], int(max(dst_points[:, 0])))
+    y_max = min(mockup_image.shape[0], int(max(dst_points[:, 1])))
 
-    if logo_img.shape[2] == 4:
-        b, g, r, a = cv2.split(logo_img)
+    target_width = x_max - x_min
+    target_height = y_max - y_min
+
+    h, w = logo_img.shape[:2]
+    aspect_ratio = w / h
+    if target_width / target_height > aspect_ratio:
+        new_h = target_height
+        new_w = int(aspect_ratio * new_h)
+    else:
+        new_w = target_width
+        new_h = int(new_w / aspect_ratio)
+
+    logo_img_resized = cv2.resize(logo_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+    canvas = np.zeros((target_height, target_width, 4), dtype=np.uint8)
+    offset_x = (target_width - new_w) // 2
+    offset_y = (target_height - new_h) // 2
+    canvas[offset_y:offset_y+new_h, offset_x:offset_x+new_w] = logo_img_resized
+
+    src_points = np.array([
+        [0, 0],
+        [target_width, 0],
+        [target_width, target_height],
+        [0, target_height],
+    ], dtype="float32")
+
+    M = cv2.getPerspectiveTransform(src_points, dst_points)
+
+    if canvas.shape[2] == 4:
+        b, g, r, a = cv2.split(canvas)
         logo_rgb = cv2.merge((b, g, r))
         alpha_mask = cv2.merge((a, a, a))
     else:
-        logo_rgb = logo_img
-        alpha_mask = np.ones((logo_img.shape[0], logo_img.shape[1], 3), dtype=np.uint8) * 255
+        logo_rgb = canvas
+        alpha_mask = np.ones_like(logo_rgb, dtype=np.uint8) * 255
 
-    M = cv2.getPerspectiveTransform(src_points, dst_points)
-    warped_logo = cv2.warpPerspective(logo_rgb, M, (tent_image.shape[1], tent_image.shape[0]))
-    warped_mask = cv2.warpPerspective(alpha_mask, M, (tent_image.shape[1], tent_image.shape[0]))
+    warped_logo = cv2.warpPerspective(logo_rgb, M, (mockup_image.shape[1], mockup_image.shape[0]))
+    warped_mask = cv2.warpPerspective(alpha_mask, M, (mockup_image.shape[1], mockup_image.shape[0]))
 
     mask_gray = cv2.cvtColor(warped_mask, cv2.COLOR_BGR2GRAY)
     _, mask = cv2.threshold(mask_gray, 1, 255, cv2.THRESH_BINARY)
     mask_inv = cv2.bitwise_not(mask)
 
-    x_min = max(0, min([pt[0] for pt in scaled_coordinates]))
-    y_min = max(0, min([pt[1] for pt in scaled_coordinates]))
-    x_max = min(tent_image.shape[1], max([pt[0] for pt in scaled_coordinates]))
-    y_max = min(tent_image.shape[0], max([pt[1] for pt in scaled_coordinates]))
+    roi = cv2.bitwise_and(mockup_image, mockup_image, mask=mask_inv)
+    logo_fg = cv2.bitwise_and(warped_logo, warped_logo, mask=mask)
+    mockup_image = cv2.add(roi, logo_fg)
 
-    roi = tent_image[y_min:y_max, x_min:x_max]
-
-    warped_logo_cropped = warped_logo[y_min:y_max, x_min:x_max]
-    mask_cropped = mask[y_min:y_max, x_min:x_max]
-    mask_inv_cropped = mask_inv[y_min:y_max, x_min:x_max]
-
-    tent_bg = cv2.bitwise_and(roi, roi, mask=mask_inv_cropped)
-    logo_fg = cv2.bitwise_and(warped_logo_cropped, warped_logo_cropped, mask=mask_cropped)
-
-    dst = cv2.add(tent_bg, logo_fg)
-    tent_image[y_min:y_max, x_min:x_max] = dst
-
-    return tent_image
+    return mockup_image
 
 
-def overlay_template(tent_image, template_img, coordinates, scale=0.4):
+def filter_mockup_items(request_data: Dict[str, Any]) -> Dict[str, List[Dict]]:
     """
-    Applies a perspective-transformed template (logo or pattern) onto the tent image
-    while preserving the natural shadows and highlights of the tent surface and adhering
-    to the shape of the quadrilateral (slope).
+    Generalized function to filter mockup items based on include and exclude conditions
+    and group the results by category.
+
+    :param request_data: Dictionary containing request parameters.
+    :return: Dictionary with categories as keys and lists of matching mockup items as values.
     """
-    scaled_coordinates = scale_quadrilateral(coordinates, scale)
-    x_min, y_min = np.min(scaled_coordinates, axis=0)
-    x_max, y_max = np.max(scaled_coordinates, axis=0)
-    region = tent_image[y_min:y_max, x_min:x_max]
-    template_resized = cv2.resize(template_img, (x_max - x_min, y_max - y_min))
-    region_hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
-    template_hsv = cv2.cvtColor(template_resized, cv2.COLOR_BGR2HSV)
-    template_hsv[..., 2] = region_hsv[..., 2]
-    blended_template = cv2.cvtColor(template_hsv, cv2.COLOR_HSV2BGR)
-    mask = cv2.inRange(template_resized, (0, 0, 0), (255, 255, 255))
-    blended_template = cv2.bitwise_and(blended_template, blended_template, mask=mask)
-    tent_bg = cv2.bitwise_and(region, region, mask=cv2.bitwise_not(mask))
 
-    blended_region = cv2.add(tent_bg, blended_template)
-    tent_image[y_min:y_max, x_min:x_max] = blended_region
+    def matches_condition(value, condition):
+        """
+        Helper function to evaluate if a value matches a condition.
+        Supports nested dictionaries and Enums.
+        """
+        if isinstance(condition, dict):
+            return all(matches_condition(value.get(k), v) for k, v in condition.items())
+        if isinstance(value, Enum):
+            return value.value == condition
+        return value == condition
 
-    return tent_image
+    def satisfies_conditions(item, data):
+        """
+        Check if an item satisfies include conditions and avoids exclude conditions.
+        """
+        include_conditions = item.get("include_conditions", {})
+        exclude_conditions = item.get("exclude_conditions", {})
+
+        meets_include = all(
+            matches_condition(data.get(k), v) for k, v in include_conditions.items()
+        )
+        avoids_exclude = not any(
+            True if data.get(k) is None else matches_condition(data.get(k), v)
+            for k, v in exclude_conditions.items()
+        )
+
+        return (
+            (
+                include_conditions
+                and exclude_conditions
+                and meets_include
+                and avoids_exclude
+            )
+            or (include_conditions and not exclude_conditions and meets_include)
+            or (not include_conditions and exclude_conditions and avoids_exclude)
+        )
+
+    return {
+        category: [
+            item
+            for item in items
+            if satisfies_conditions(item, request_data)
+            or item.get("include_conditions", {}).get("tent_type") == "all"
+        ]
+        for category, items in MOCKUP_ITEMS.items()
+    }
 
 
-def color_template(template, walls_primary_color, walls_secondary_color, walls_tertiary_color):
-    """
-    Colors the different regions of a template based on black lines separating the regions.
-    """
-    gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    colors = [ (walls_tertiary_color[0], walls_tertiary_color[1], walls_tertiary_color[2]), 
-              (walls_secondary_color[0], walls_secondary_color[1], walls_secondary_color[2]),
-              (walls_primary_color[0], walls_primary_color[1], walls_primary_color[2]), 
-              (walls_tertiary_color[0], walls_tertiary_color[1], walls_tertiary_color[2]),
-              (walls_secondary_color[0], walls_secondary_color[1], walls_secondary_color[2]),]
-    colored_image = template.copy()
-    for idx, contour in enumerate(contours):
-        color = colors[idx % len(colors)]
-        cv2.drawContours(colored_image, [contour], -1, color, thickness=cv2.FILLED)
-        cv2.drawContours(colored_image, [contour], -1, color, thickness=5)
-                    
-    return colored_image
+def generate_mockups(overlay_data: OverlayRequest, logo_content: bytes):
+    """Generates canopy mockups based on user requirements of base color, text, font color, etc."""
+    logo_image = preprocess_logo(logo_content)
+    overlay_data = convert_overlay_colors(overlay_data)
+    mockups = filter_mockup_items(overlay_data.model_dump())
+    generate_mockups = {}
+    for category, items in mockups.items():
+        for item in items:
+            config = (
+                OVERLAY_CONFIGURATIONS.get(category)
+                if category == "add_ons"
+                else OVERLAY_CONFIGURATIONS
+            )
+            name = item.get("name")
+            generate_mockups[name] = generate_single_mockup(
+                item,
+                config,
+                (
+                    getattr(getattr(overlay_data, category), name)
+                    if category == "add_ons"
+                    else overlay_data
+                ),
+                logo_image,
+                overlay_data.output_dir,
+                font_size=(
+                    (DEFAULT_FONT_SIZE + 12)
+                    if name == "top-view"
+                    else DEFAULT_FONT_SIZE
+                ),
+            )
+
+    return generate_mockups
 
 
-# Main function that applies logos and generates a mockup based on user requirements
-def apply_all_logos(overlay_data: OverlayRequest, logo_content: bytes, zipfile: zipfile.ZipFile):
-    """Generates canopy mockups based on user requirements of base color, text, font color, etc"""
+def generate_single_mockup(
+    item: dict,
+    config: dict,
+    data: Dict[str, Any],
+    logo_image: Image,
+    output_dir: str = DEFAULT_OUTPUT_DIR,
+    font_size: int = DEFAULT_FONT_SIZE,
+):
+    name = item.get("name")
+    mockup_image = fetch_mockup_image(name, item.get("url"))
+    case_config = config.get(name)
+    masks = config.get("masks")
+
+    extracted_masks = extract_all_masks(mockup_image, masks)
+    mockup_image = apply_color(mockup_image, case_config.get("color-coordinates"), data)
+    mockup_image = apply_all_logos(
+        mockup_image, data, logo_image, case_config.get("logos"), font_size
+    )
+    if len(extracted_masks) > 0:
+        for mask_key, mask_coordinates in masks.items():
+            mockup_image = overlay_masks(
+                mockup_image, extracted_masks.get(mask_key), mask_coordinates
+            )
+    return save_mockup_image(mockup_image, name, output_dir)
+
+
+def preprocess_logo(logo_content: bytes) -> np.ndarray:
+    """Decodes and preprocesses the logo image."""
     logo_array = np.frombuffer(logo_content, np.uint8)
-    logo_image = cv2.imdecode(logo_array, cv2.IMREAD_UNCHANGED)
-    
-    response = requests.get(DEFAULT_TEMPLATE_URL)
+    return cv2.imdecode(logo_array, cv2.IMREAD_UNCHANGED)
+
+
+def fetch_mockup_image(name: str, path: str) -> np.ndarray:
+    """Fetches the tent image from the given path."""
+    response = requests.get(path)
     if response.status_code != 200:
-        raise HTTPException(status_code=404, detail=f"Tent image {tent_type} not found.")
-    
-    template = cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR)
-    template = color_template(template, overlay_data.walls_primary_color, overlay_data.walls_secondary_color, overlay_data.walls_tertiary_color)
-    
-    for tent_type, tent_path in TENT_MOCKUPS.items():
-        
-        response = requests.get(tent_path)
-        if response.status_code != 200:
-            raise HTTPException(status_code=404, detail=f"Tent image {tent_type} not found.")
-        
-        tent_image = cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR)
-        case_config = OVERLAY_CONFIGURATIONS.get(tent_type)
-        color_coordinates = case_config.get("color-coordinates")
-        logos = case_config.get("logos")
-        masks = case_config.get("masks")
-        
-        extracted_masks = {}
-        
-        if (masks is not None) and (len(masks) > 0):
-            for mask_key, mask_coordinates in masks.items():
-                extracted_masks[mask_key] = extract_masks(tent_image, mask_coordinates)
-                
-        tent_image = apply_color(tent_image, color_coordinates, 
-                        slope_color=overlay_data.slope_color, 
-                        canopy_color=overlay_data.canopy_color, 
-                        walls_color=overlay_data.walls_primary_color)
-        
-        for logo_key, logo_value in logos.items():
-            overlay_image = logo_image
-            if "text" in logo_key:
-                overlay_image = create_text_image(overlay_data.text, font_color=overlay_data.font_color)
-                
-            coordinates = logo_value.get("coordinates")
-            scale = logo_value.get("scale")
-            mask = logo_value.get("mask", None)
-            
-            if mask is not None:
-                extracted = extract_masks(tent_image, coordinates=mask)
-            if "template" in logo_key:
-                if 'true' in overlay_data.is_patterned:
-                    tent_image = overlay_template(tent_image, template, coordinates=coordinates, scale=scale)
+        raise HTTPException(status_code=404, detail=f"Tent image {name} not found.")
+    return cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR)
+
+
+def extract_all_masks(mockup_image: np.ndarray, masks: dict) -> dict:
+    """Extracts all masks based on the given configurations."""
+    extracted_masks = {}
+    if masks:
+        for mask_key, mask_coordinates in masks.items():
+            extracted_masks[mask_key] = extract_masks(mockup_image, mask_coordinates)
+    return extracted_masks
+
+
+def apply_all_logos(
+    mockup_image: np.ndarray,
+    overlay_data: OverlayRequest,
+    logo_image: np.ndarray,
+    logo_config: dict,
+    font_size: int = DEFAULT_FONT_SIZE,
+) -> np.ndarray:
+    """Applies all logos to the tent images."""
+    for region, sub_region in logo_config.items():
+        for sub_region_key, side in sub_region.items():
+            if sub_region_key == "text":
+                mockup_image = apply_text_logos(
+                    mockup_image, overlay_data, side, font_size
+                )
             else:
-                tent_image = overlay_logo(tent_image, overlay_image, coordinates=coordinates, scale=scale)
-            if mask is not None:
-                tent_image = overlay_masks(tent_image, coordinates=mask, extracted_mask=extracted)
-            
-        if len(extracted_masks) > 0:
-            for mask_key, mask_coordinates in masks.items():
-                tent_image = overlay_masks(tent_image, extracted_masks.get(mask_key), mask_coordinates)
-                
-        is_success, buffer = cv2.imencode(".jpg", tent_image)
-        if is_success:
-            zipfile.writestr(f"output_{tent_type}.jpg", buffer.tobytes())
-        
-         
-        
+                mockup_image = apply_logo_images(mockup_image, logo_image, side)
+
+    return mockup_image
+
+
+def apply_text_logos(
+    mockup_image: np.ndarray,
+    overlay_data: OverlayRequest,
+    texts: dict,
+    font_size: int = DEFAULT_FONT_SIZE,
+) -> np.ndarray:
+    """Overlays text-based logos on the tent image."""
+    for logo_key, logo_value in texts.items():
+        text = getattr(overlay_data.text, logo_key, DEFAULT_TEXT)
+        overlay_image = create_text_image(
+            text,
+            font_color=overlay_data.font_color,
+            font_size=font_size,
+            rotation_angle=logo_value.get("rotation_angle", DEFAULT_ROTATION_ANGLE)
+        )
+        coordinates, scale = logo_value.get("coordinates"), logo_value.get("scale")
+        mockup_image = overlay_logo(
+            mockup_image, overlay_image, coordinates=coordinates, scale=scale
+        )
+    return mockup_image
+
+
+def apply_logo_images(
+    mockup_image: np.ndarray, logo_image: np.ndarray, side: dict
+) -> np.ndarray:
+    """Overlays image-based logos on the tent image."""
+    coordinates, scale, mask = (
+        side.get("coordinates"),
+        side.get("scale"),
+        side.get("mask", None),
+    )
+    if mask is not None:
+        extracted = extract_masks(mockup_image, coordinates=mask)
+    mockup_image = overlay_logo(
+        mockup_image, logo_image, coordinates=coordinates, scale=scale
+    )
+    if mask is not None:
+        mockup_image = overlay_masks(
+            mockup_image, coordinates=mask, extracted_mask=extracted
+        )
+    return mockup_image
+
+
+def save_mockup_image(
+    mockup_image: np.ndarray,
+    name: str,
+    output_dir: str = DEFAULT_OUTPUT_DIR,
+) -> None:
+    """Encodes the tent image and stores it in the blob storage."""
+    is_success, buffer = cv2.imencode(".jpg", mockup_image)
+    if is_success:
+        return blob.put(f"{output_dir}/output_{name}.jpg", buffer.tobytes(), {})
+    return None
