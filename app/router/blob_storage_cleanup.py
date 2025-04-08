@@ -13,7 +13,7 @@ async def blob_storage_cleanup():
 
     print(f"Running cleanup... | Current time: {now.isoformat()} | Cutoff time (3 minutes ago): {cutoff.isoformat()}")
 
-    blobs = list({"prefix": "temp**/**/*"}).get("blobs", [])
+    blobs = list({"prefix": "temp"}).get("blobs", [])
     deleted = 0
 
     for blob in blobs:
