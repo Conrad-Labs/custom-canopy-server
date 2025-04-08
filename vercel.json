@@ -10,17 +10,12 @@
     }
   ],
   "routes": [
-    { "src": "/api/blob_storage_cleanup", "dest": "api/blob_storage_cleanup.py" },
+    { "src": "/api/blob-storage-cleanup", "dest": "api/blob_storage_cleanup.py" },
     { "src": "/(.*)", "dest": "app/main.py" }
   ],
-  "functions": {
-    "api/blob_storage_cleanup.py": {
-      "runtime": "python3.11"
-    }
-  },
-  "cron": [
+  "crons": [
     {
-      "path": "/api/blob_storage_cleanup",
+      "path": "/api/blob-storage-cleanup",
       "schedule": "*/3 * * * *"  
     }
   ]
