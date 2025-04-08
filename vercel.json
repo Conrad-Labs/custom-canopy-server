@@ -3,9 +3,25 @@
     {
       "src": "app/main.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "api/blob_storage_cleanup.py",
+      "use": "@vercel/python"
     }
   ],
   "routes": [
+    { "src": "/api/blob_storage_cleanup", "dest": "api/blob_storage_cleanup.py" },
     { "src": "/(.*)", "dest": "app/main.py" }
+  ],
+  "functions": {
+    "api/blob_storage_cleanup.py": {
+      "runtime": "python3.11"
+    }
+  },
+  "cron": [
+    {
+      "path": "/api/blob_storage_cleanup",
+      "schedule": "*/3 * * * *"  
+    }
   ]
 }
