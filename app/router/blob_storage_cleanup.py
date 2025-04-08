@@ -1,10 +1,13 @@
+from fastapi import APIRouter
 from datetime import datetime, timedelta, timezone
 from vercel_storage.blob import list, delete
 from dotenv import load_dotenv
 
 load_dotenv()
+router = APIRouter()
 
-def handler(request):
+@router.post("/blob-storage-cleanup", tags=["Blob Storage Cleanup"])
+async def blob_storage_cleanup():
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(minutes=3)
 

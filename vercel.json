@@ -3,19 +3,14 @@
     {
       "src": "app/main.py",
       "use": "@vercel/python"
-    },
-    {
-      "src": "api/blob_storage_cleanup.py",
-      "use": "@vercel/python"
     }
   ],
   "routes": [
-    { "src": "/api/blob-storage-cleanup", "dest": "api/blob_storage_cleanup.py" },
     { "src": "/(.*)", "dest": "app/main.py" }
   ],
   "crons": [
     {
-      "path": "/api/blob-storage-cleanup",
+      "path": "/blob-storage-cleanup",
       "schedule": "*/3 * * * *"  
     }
   ]
