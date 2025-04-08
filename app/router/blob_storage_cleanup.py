@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 router = APIRouter()
 
-@router.post("/blob-storage-cleanup", tags=["Blob Storage Cleanup"])
+@router.get("/blob-storage-cleanup", tags=["Blob Storage Cleanup"])
 async def blob_storage_cleanup():
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(minutes=3)
