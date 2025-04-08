@@ -9,9 +9,9 @@ router = APIRouter()
 @router.get("/blob-storage-cleanup", tags=["Blob Storage Cleanup"])
 async def blob_storage_cleanup():
     now = datetime.now(timezone.utc)
-    cutoff = now - timedelta(minutes=3)
+    cutoff = now - timedelta(days=1)
 
-    print(f"Running cleanup... | Current time: {now.isoformat()} | Cutoff time (3 minutes ago): {cutoff.isoformat()}")
+    print(f"Running cleanup... | Current time: {now.isoformat()} | Cutoff time (1 day ago): {cutoff.isoformat()}")
 
     blobs = list({"prefix": "temp"}).get("blobs", [])
     deleted = 0
@@ -25,5 +25,5 @@ async def blob_storage_cleanup():
 
     return {
         "statusCode": 200,
-        "body": f"Cleanup complete. Deleted {deleted} blobs older than 3 minutes."
+        "body": f"Cleanup complete. Deleted {deleted} blobs older than a day."
     }

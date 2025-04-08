@@ -5,13 +5,11 @@
       "use": "@vercel/python"
     }
   ],
-  "routes": [
-    { "src": "/(.*)", "dest": "app/main.py" }
-  ],
+  "routes": [{ "src": "/(.*)", "dest": "app/main.py" }],
   "crons": [
     {
       "path": "/blob-storage-cleanup",
-      "schedule": "*/3 * * * *"  
+      "schedule": "0 0 * * *"
     }
   ]
 }
