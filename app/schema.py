@@ -52,6 +52,8 @@ class OverlayRequest(BaseModel):
     valences: TentSides
     panels: TentSides
     font_color: List[int] = Field(DEFAULT_FONT_COLOUR, description="Font color is required and must be a list of 3 integers.")
+    font_size: Optional[int]
+    font_url: Optional[str]
     text: ValencesText
     add_ons: Optional[AddOns] = None
     tent_type: TentTypes

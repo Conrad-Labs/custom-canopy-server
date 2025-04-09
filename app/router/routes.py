@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.schema import OverlayRequest, TentSides, ValencesText, AddOns, Table
 from app.services.image_processor import generate_mockups
-from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_TENT_COLOR, DEFAULT_TEXT
+from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_FONT_SIZE, DEFAULT_FONT_URL, DEFAULT_TENT_COLOR, DEFAULT_TEXT
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -90,6 +90,16 @@ async def create_mockups(
         description="Font color for the text. Must be a string representation of a list of three integers representing the BGR color value.",
         example=f'"{DEFAULT_FONT_COLOUR}"',
     ),
+    text_size: Optional[int] = Form(
+        DEFAULT_FONT_SIZE,
+        description="Font size for the text. Must be an integer.",
+        example=f'"{DEFAULT_FONT_SIZE}"',
+    ),
+    font_url: Optional[str] = Form(
+        DEFAULT_FONT_URL,
+        description="The URL for the font the user wishes to use",
+        example=DEFAULT_FONT_URL
+    ),
     front_text: Optional[str] = Form(
         "",
         description="Text to be added to the front valence of the canopy.",
@@ -163,6 +173,8 @@ async def create_mockups(
             valences=valences,
             panels=panels,
             font_color=font_color,
+            font_size=text_size,
+            font_url=font_url,
             text=text,
             add_ons=addons,
             output_dir=output_dir,

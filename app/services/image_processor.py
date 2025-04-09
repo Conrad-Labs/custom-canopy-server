@@ -9,7 +9,6 @@ from app.constants import (
     OVERLAY_CONFIGURATIONS,
     DEFAULT_TEXT,
     DEFAULT_FONT_SIZE,
-    DEFAULT_PADDING,
     DEFAULT_ROTATION_ANGLE,
     DEFAULT_FONT_COLOUR,
     DEFAULT_FONT_URL,
@@ -21,14 +20,14 @@ from enum import Enum
 from vercel_storage import blob
 
 
-# Helper function to create an image to overlay text on mockup
 def create_text_image(
+    target_width,
+    target_height,
     text=DEFAULT_TEXT,
     font_size=DEFAULT_FONT_SIZE,
     font_color=DEFAULT_FONT_COLOUR,
-    padding=DEFAULT_PADDING,
     rotation_angle=DEFAULT_ROTATION_ANGLE,
-    font_url=DEFAULT_FONT_URL,
+    font_url=DEFAULT_FONT_URL
 ):
     """
     Creates an image for the text provided by the user with the specified font size, color, padding, and rotation angle.
@@ -38,47 +37,42 @@ def create_text_image(
     if not font_url:
         raise ValueError("Font URL must be provided.")
     
-    spacing = 5
+    spacing = 10
+    hi_res_factor = 4
+    render_width = target_width * hi_res_factor
+    render_height = target_height * hi_res_factor
 
     response = requests.get(font_url)
     if response.status_code != 200:
-        raise Exception(
-            f"Failed to fetch the font file. Status code: {response.status_code}"
-        )
-
+        raise Exception(f"Failed to fetch the font file. Status code: {response.status_code}")
     font_bytes = io.BytesIO(response.content)
     font = ImageFont.truetype(font_bytes, font_size)
     font_color_rgba = (font_color[2], font_color[1], font_color[0], 255)
-
-    dummy_img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(dummy_img)
     
-    # Calculate text size manually with spacing
     char_widths = [font.getbbox(c)[2] for c in text]
-    text_width = sum(char_widths) + (len(text) - 1) * spacing 
+    text_width = sum(char_widths) + (len(text) - 1) * spacing
     text_height = font.getbbox(text)[3] - font.getbbox(text)[1]
 
-    extra_padding = 4 if rotation_angle != 0 else 0
-    canvas_size = (
-        text_width + 2 * (padding + extra_padding),
-        text_height + 2 * (padding + extra_padding),
-    )
-    container = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(container)
+    canvas_width = max(render_width, text_width + 20)
+    canvas_height = max(render_height, text_height + 20)
+    canvas = Image.new("RGBA", (canvas_width, canvas_height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
 
-    # Draw each character with spacing and boldness
-    x = padding
+    text_x = (canvas_width - text_width) // 2
+    text_y = (canvas_height - text_height) // 2
+
+    x = text_x
     for char in text:
-        for dx in range(2):  # Simulate boldness by drawing twice
+        for dx in range(6):
             for dy in range(2):
-                draw.text((x + dx, padding + dy), char, font=font, fill=font_color_rgba)
+                draw.text((x + dx, text_y + dy), char, font=font, fill=font_color_rgba)
+        draw.text((x, text_y), char, font=font, fill=font_color_rgba)
         x += font.getbbox(char)[2] + spacing
-
+    
     if rotation_angle != 0:
-        container = container.rotate(rotation_angle, expand=True)
+        canvas = canvas.rotate(rotation_angle, expand=True)
 
-    return cv2.cvtColor(np.array(container), cv2.COLOR_RGBA2BGRA)
-
+    return cv2.cvtColor(np.array(canvas), cv2.COLOR_RGBA2BGRA)
 
 # Helper functions to extract and reapply masks from base mockup
 def extract_masks(mockup_image, coordinates):
@@ -387,12 +381,7 @@ def generate_mockups(overlay_data: OverlayRequest, logo_content: bytes):
                     else overlay_data
                 ),
                 logo_image,
-                overlay_data.output_dir,
-                font_size=(
-                    (DEFAULT_FONT_SIZE + 12)
-                    if name == "top-view"
-                    else DEFAULT_FONT_SIZE
-                ),
+                overlay_data.output_dir
             )
 
     return generate_mockups
@@ -403,8 +392,7 @@ def generate_single_mockup(
     config: dict,
     data: Dict[str, Any],
     logo_image: Image,
-    output_dir: str = DEFAULT_OUTPUT_DIR,
-    font_size: int = DEFAULT_FONT_SIZE,
+    output_dir: str = DEFAULT_OUTPUT_DIR
 ):
     name = item.get("name")
     mockup_image = fetch_mockup_image(name, item.get("url"))
@@ -414,7 +402,7 @@ def generate_single_mockup(
     extracted_masks = extract_all_masks(mockup_image, masks)
     mockup_image = apply_color(mockup_image, case_config.get("color-coordinates"), data)
     mockup_image = apply_all_logos(
-        mockup_image, data, logo_image, case_config.get("logos"), font_size
+        mockup_image, data, logo_image, case_config.get("logos"), 
     )
     if len(extracted_masks) > 0:
         for mask_key, mask_coordinates in masks.items():
@@ -451,38 +439,46 @@ def apply_all_logos(
     mockup_image: np.ndarray,
     overlay_data: OverlayRequest,
     logo_image: np.ndarray,
-    logo_config: dict,
-    font_size: int = DEFAULT_FONT_SIZE,
+    logo_config: dict
 ) -> np.ndarray:
     """Applies all logos to the tent images."""
     for region, sub_region in logo_config.items():
         for sub_region_key, side in sub_region.items():
             if sub_region_key == "text":
                 mockup_image = apply_text_logos(
-                    mockup_image, overlay_data, side, font_size
+                    mockup_image, overlay_data, side
                 )
             else:
                 mockup_image = apply_logo_images(mockup_image, logo_image, side)
 
     return mockup_image
 
+def getTextContainerDimensions(coordinates: np.ndarray):
+    width = abs(min(coordinates[1][0] - coordinates[0][0], coordinates[3][0] - coordinates[2][0]))
+    height = abs(min(coordinates[2][1] - coordinates[1][1], coordinates[3][1] - coordinates[0][1]))
+    return max(width, height), min(width, height)
+
 
 def apply_text_logos(
     mockup_image: np.ndarray,
     overlay_data: OverlayRequest,
-    texts: dict,
-    font_size: int = DEFAULT_FONT_SIZE,
+    texts: dict
 ) -> np.ndarray:
     """Overlays text-based logos on the tent image."""
     for logo_key, logo_value in texts.items():
         text = getattr(overlay_data.text, logo_key, DEFAULT_TEXT)
-        overlay_image = create_text_image(
-            text,
-            font_color=overlay_data.font_color,
-            font_size=font_size,
-            rotation_angle=logo_value.get("rotation_angle", DEFAULT_ROTATION_ANGLE)
-        )
+        
         coordinates, scale = logo_value.get("coordinates"), logo_value.get("scale")
+        width, height = getTextContainerDimensions(coordinates)
+        overlay_image = create_text_image(
+            target_width=width,
+            target_height=height,
+            text=text,
+            font_color=overlay_data.font_color,
+            font_size=overlay_data.font_size,
+            rotation_angle=logo_value.get("rotation_angle", DEFAULT_ROTATION_ANGLE),
+            font_url=overlay_data.font_url
+        )
         mockup_image = overlay_logo(
             mockup_image, overlay_image, coordinates=coordinates, scale=scale
         )

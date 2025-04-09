@@ -1,6 +1,6 @@
 CONRAD_TEXT = "CONRAD LABS | CONRADLABS.COM"
 DEFAULT_TEXT = ""
-DEFAULT_FONT_SIZE = 36
+DEFAULT_FONT_SIZE = 96
 DEFAULT_PADDING = 10
 DEFAULT_ROTATION_ANGLE = 0
 DEFAULT_FONT_COLOUR = [255, 255, 255]
@@ -89,12 +89,12 @@ OVERLAY_CONFIGURATIONS = {
                 "text": {
                     "front": {
                         "coordinates": [
-                            (858, 829),
-                            (3137, 829),
-                            (3137, 1189),
-                            (858, 1189),
+                            (846, 829),
+                            (3149, 829),
+                            (3149, 1196),
+                            (846, 1196),
                         ],
-                        "scale": 0.5,
+                        "scale": 3.5,
                     },
                 }
             },
@@ -169,7 +169,7 @@ OVERLAY_CONFIGURATIONS = {
                             (2001, 788),
                             (672, 916),
                         ],
-                        "scale": 0.5,
+                        "scale": 1.1,
                     },
                     "right": {
                         "coordinates": [
@@ -178,7 +178,7 @@ OVERLAY_CONFIGURATIONS = {
                             (2901, 952),
                             (2025, 801),
                         ],
-                        "scale": 0.5,
+                        "scale": 1.1,
                     },
                 }
             },
@@ -256,7 +256,7 @@ OVERLAY_CONFIGURATIONS = {
                             (2010, 1204),
                             (567, 1253),
                         ],
-                        "scale": 0.5,
+                        "scale": 2.1,
                     },
                     "right": {
                         "coordinates": [
@@ -265,7 +265,7 @@ OVERLAY_CONFIGURATIONS = {
                             (3496, 1250),
                             (2094, 1198),
                         ],
-                        "scale": 0.5,
+                        "scale": 2.1,
                     },
                 },
             },
@@ -351,7 +351,7 @@ OVERLAY_CONFIGURATIONS = {
                             (2378, 1046),
                             (644, 1145),
                         ],
-                        "scale": 0.5,
+                        "scale": 0.9,
                     },
                     "right": {
                         "coordinates": [
@@ -360,7 +360,7 @@ OVERLAY_CONFIGURATIONS = {
                             (3404, 1185),
                             (2441, 1050),
                         ],
-                        "scale": 0.5,
+                        "scale": 0.9,
                     },
                 }
             },
@@ -410,11 +410,11 @@ OVERLAY_CONFIGURATIONS = {
                 "text": {
                     "front": {
                         "coordinates": [(161, 325), (539, 299), (539, 369), (161, 370)],
-                        "scale": 0.5,
+                        "scale": 0.9,
                     },
                     "right": {
                         "coordinates": [(547, 297), (874, 322), (874, 372), (547, 372)],
-                        "scale": 0.5,
+                        "scale": 0.9,
                     },
                 }
             },
@@ -466,20 +466,20 @@ OVERLAY_CONFIGURATIONS = {
                 "text": {
                     "front": {
                         "coordinates": [(238, 825), (766, 825), (766, 886), (238, 886)],
-                        "scale": 0.5,
+                        "scale": 0.9,
                     },
                     "left": {
                         "coordinates": [(101, 217), (161, 217), (161, 745), (101, 745)],
-                        "scale": 0.5,
+                        "scale": 0.9,
                         "rotation_angle": 270,
                     },
                     "back": {
                         "coordinates": [(767, 141), (236, 141), (236, 84), (767, 84)],
-                        "scale": 0.5
+                        "scale": 0.9
                     },
                     "right": {
                         "coordinates": [(847, 220), (902, 220), (902, 758), (847, 758)],
-                        "scale": 0.5,
+                        "scale": 0.9,
                         "rotation_angle": 90,
                     },
                 }
