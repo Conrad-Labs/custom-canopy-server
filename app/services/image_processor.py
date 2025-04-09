@@ -37,7 +37,7 @@ def create_text_image(
     if not font_url:
         raise ValueError("Font URL must be provided.")
     
-    spacing = 10
+    spacing = 20
     hi_res_factor = 4
     render_width = target_width * hi_res_factor
     render_height = target_height * hi_res_factor
@@ -60,14 +60,12 @@ def create_text_image(
 
     text_x = (canvas_width - text_width) // 2
     text_y = (canvas_height - text_height) // 2
-
     x = text_x
     for char in text:
-        for dx in range(6):
-            for dy in range(2):
-                draw.text((x + dx, text_y + dy), char, font=font, fill=font_color_rgba)
-        draw.text((x, text_y), char, font=font, fill=font_color_rgba)
-        x += font.getbbox(char)[2] + spacing
+        draw.text((x, text_y), char, font=font, fill=font_color_rgba, stroke_width=4)
+        char_width = font.getbbox(char)[2]
+        x += char_width + spacing
+
     
     if rotation_angle != 0:
         canvas = canvas.rotate(rotation_angle, expand=True)
