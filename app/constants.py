@@ -12,29 +12,29 @@ MOCKUP_ITEMS = {
     "tents": [
         {
             "name": "front-wall",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-front-PUClMH37WQ9ZeE441ENcj5OfQsIBeg.png",
+            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/half-walls-front-keoAhvRi7FiCU4kPBixpTVUAXfkqs0.png",
             "include_conditions": {"tent_type": "half-walls"},
         },
         {
             "name": "half-wall",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-half-wall-YB36f9zdXBc7US0wwVkptbr8ilmGVg.png",
+            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/half-walls-side-dyzU1hP5nsEefl5IxHsOoOnbHhGXon.png",
             "include_conditions": {"tent_type": "half-walls"},
         },
         {
             "name": "no-walls",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-no-walls-vWSBKzV0BzTsS7rv1E1JCzz5IMJ54O.png",
+            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/no-walls-6PiBwvy77Bdo9LXWT6RAvoMKtETKHL.png",
             "include_conditions": {"tent_type": "no-walls"},
         },
         {
             "name": "top-view",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/tent-mockup-top-view-MDMODEv31VWZkrTotyIGGYgAhboYAH.png",
+            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/top-view-nykA47xWcnyOSkN86zhAFyh8kwj1bO.png",
             "include_conditions": {"tent_type": "all"},
         },
     ],
     "add_ons": [
         {
             "name": "table",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/add-ons/table-mockup-yHAC8kEdXOjNWA2BC2Hx6P6K3ZKqvi.png",
+            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/add-ons/table-JQzC17ZdlVq31ZJsb8azUcs0E2Dfk6.png",
             "exclude_conditions": {"add_ons": {"table": None}},
         },
     ],
