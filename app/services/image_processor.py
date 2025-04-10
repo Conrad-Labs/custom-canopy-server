@@ -62,7 +62,7 @@ def create_text_image(
     text_y = (canvas_height - text_height) // 2
     x = text_x
     for char in text:
-        draw.text((x, text_y), char, font=font, fill=font_color_rgba, stroke_width=4)
+        draw.text((x, text_y), char, font=font, fill=font_color_rgba, stroke_width=12)
         char_width = font.getbbox(char)[2]
         x += char_width + spacing
 
@@ -379,7 +379,12 @@ def generate_mockups(overlay_data: OverlayRequest, logo_content: bytes):
                     else overlay_data
                 ),
                 logo_image,
-                overlay_data.output_dir
+                overlay_data.output_dir,
+                (
+                    overlay_data.font_size * 2
+                    if "front" in category
+                    else overlay_data.font_size
+                )
             )
 
     return generate_mockups
@@ -390,17 +395,18 @@ def generate_single_mockup(
     config: dict,
     data: Dict[str, Any],
     logo_image: Image,
-    output_dir: str = DEFAULT_OUTPUT_DIR
+    output_dir: str = DEFAULT_OUTPUT_DIR,
+    font_size: int = DEFAULT_FONT_SIZE
 ):
     name = item.get("name")
     mockup_image = fetch_mockup_image(name, item.get("url"))
     case_config = config.get(name)
-    masks = config.get("masks")
+    masks = case_config.get("masks")
 
     extracted_masks = extract_all_masks(mockup_image, masks)
     mockup_image = apply_color(mockup_image, case_config.get("color-coordinates"), data)
     mockup_image = apply_all_logos(
-        mockup_image, data, logo_image, case_config.get("logos"), 
+        mockup_image, data, logo_image, case_config.get("logos"), font_size
     )
     if len(extracted_masks) > 0:
         for mask_key, mask_coordinates in masks.items():
@@ -437,14 +443,15 @@ def apply_all_logos(
     mockup_image: np.ndarray,
     overlay_data: OverlayRequest,
     logo_image: np.ndarray,
-    logo_config: dict
+    logo_config: dict,
+    font_size: int
 ) -> np.ndarray:
     """Applies all logos to the tent images."""
     for region, sub_region in logo_config.items():
         for sub_region_key, side in sub_region.items():
             if sub_region_key == "text":
                 mockup_image = apply_text_logos(
-                    mockup_image, overlay_data, side
+                    mockup_image, overlay_data, side, font_size
                 )
             else:
                 mockup_image = apply_logo_images(mockup_image, logo_image, side)
@@ -460,7 +467,8 @@ def getTextContainerDimensions(coordinates: np.ndarray):
 def apply_text_logos(
     mockup_image: np.ndarray,
     overlay_data: OverlayRequest,
-    texts: dict
+    texts: dict,
+    font_size: int
 ) -> np.ndarray:
     """Overlays text-based logos on the tent image."""
     for logo_key, logo_value in texts.items():
@@ -473,7 +481,7 @@ def apply_text_logos(
             target_height=height,
             text=text,
             font_color=overlay_data.font_color,
-            font_size=overlay_data.font_size,
+            font_size=font_size,
             rotation_angle=logo_value.get("rotation_angle", DEFAULT_ROTATION_ANGLE),
             font_url=overlay_data.font_url
         )
