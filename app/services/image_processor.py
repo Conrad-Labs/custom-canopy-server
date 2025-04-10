@@ -244,29 +244,15 @@ def overlay_logo(mockup_image, logo_img, coordinates, scale=0.4):
     scaled_coordinates = scale_quadrilateral(coordinates, scale)
     dst_points = np.array(scaled_coordinates, dtype="float32")
 
-    x_min = max(0, int(min(dst_points[:, 0])))
-    y_min = max(0, int(min(dst_points[:, 1])))
-    x_max = min(mockup_image.shape[1], int(max(dst_points[:, 0])))
-    y_max = min(mockup_image.shape[0], int(max(dst_points[:, 1])))
+    x_min = int(min(dst_points[:, 0]))
+    y_min = int(min(dst_points[:, 1]))
+    x_max = int(max(dst_points[:, 0]))
+    y_max = int(max(dst_points[:, 1]))
 
     target_width = x_max - x_min
     target_height = y_max - y_min
 
-    h, w = logo_img.shape[:2]
-    aspect_ratio = w / h
-    if target_width / target_height > aspect_ratio:
-        new_h = target_height
-        new_w = int(aspect_ratio * new_h)
-    else:
-        new_w = target_width
-        new_h = int(new_w / aspect_ratio)
-
-    logo_img_resized = cv2.resize(logo_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-
-    canvas = np.zeros((target_height, target_width, 4), dtype=np.uint8)
-    offset_x = (target_width - new_w) // 2
-    offset_y = (target_height - new_h) // 2
-    canvas[offset_y:offset_y+new_h, offset_x:offset_x+new_w] = logo_img_resized
+    logo_resized = cv2.resize(logo_img, (target_width, target_height), interpolation=cv2.INTER_AREA)
 
     src_points = np.array([
         [0, 0],
@@ -276,28 +262,30 @@ def overlay_logo(mockup_image, logo_img, coordinates, scale=0.4):
     ], dtype="float32")
 
     M = cv2.getPerspectiveTransform(src_points, dst_points)
-
-    if canvas.shape[2] == 4:
-        b, g, r, a = cv2.split(canvas)
-        logo_rgb = cv2.merge((b, g, r))
-        alpha_mask = cv2.merge((a, a, a))
+    warped_logo = cv2.warpPerspective(logo_resized, M, (mockup_image.shape[1], mockup_image.shape[0]))
+    
+    if warped_logo.shape[2] == 4:
+        alpha_channel = warped_logo[:, :, 3]
+        warped_logo = cv2.cvtColor(warped_logo, cv2.COLOR_BGRA2BGR)
     else:
-        logo_rgb = canvas
-        alpha_mask = np.ones_like(logo_rgb, dtype=np.uint8) * 255
+        alpha_channel = cv2.cvtColor(warped_logo, cv2.COLOR_BGR2GRAY)
 
-    warped_logo = cv2.warpPerspective(logo_rgb, M, (mockup_image.shape[1], mockup_image.shape[0]))
-    warped_mask = cv2.warpPerspective(alpha_mask, M, (mockup_image.shape[1], mockup_image.shape[0]))
-
-    mask_gray = cv2.cvtColor(warped_mask, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(mask_gray, 1, 255, cv2.THRESH_BINARY)
+    _, mask = cv2.threshold(alpha_channel, 1, 255, cv2.THRESH_BINARY)
     mask_inv = cv2.bitwise_not(mask)
 
-    roi = cv2.bitwise_and(mockup_image, mockup_image, mask=mask_inv)
-    logo_fg = cv2.bitwise_and(warped_logo, warped_logo, mask=mask)
-    mockup_image = cv2.add(roi, logo_fg)
+    mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+    mask_inv_rgb = cv2.cvtColor(mask_inv, cv2.COLOR_GRAY2BGR)
+
+    if warped_logo.shape[:2] != mockup_image.shape[:2]:
+        warped_logo = cv2.resize(warped_logo, (mockup_image.shape[1], mockup_image.shape[0]))
+        mask_rgb = cv2.resize(mask_rgb, (mockup_image.shape[1], mockup_image.shape[0]))
+        mask_inv_rgb = cv2.resize(mask_inv_rgb, (mockup_image.shape[1], mockup_image.shape[0]))
+
+    background = cv2.bitwise_and(mockup_image, mask_inv_rgb)
+    foreground = cv2.bitwise_and(warped_logo, mask_rgb)
+    mockup_image = cv2.add(background, foreground)
 
     return mockup_image
-
 
 def filter_mockup_items(request_data: Dict[str, Any]) -> Dict[str, List[Dict]]:
     """
