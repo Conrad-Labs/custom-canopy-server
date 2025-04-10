@@ -409,7 +409,7 @@ def generate_single_mockup(
     name = item.get("name")
     mockup_image = fetch_mockup_image(name, item.get("url"))
     case_config = config.get(name)
-    masks = config.get("masks")
+    masks = case_config.get("masks")
 
     extracted_masks = extract_all_masks(mockup_image, masks)
     mockup_image = apply_color(mockup_image, case_config.get("color-coordinates"), data)
