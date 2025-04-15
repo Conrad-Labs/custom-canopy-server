@@ -126,11 +126,16 @@ async def create_mockups(
         example=f'"{DEFAULT_TENT_COLOR}"',
     ),
     output_dir: str = Form('"{DEFAULT_OUTPUT_DIR}"'),
+    tent_types: Optional[str] = Form(
+        "['no-walls']",
+        description="The tent types which should be generated"
+    )
 ):
     """
     Create mockups for canopy layouts with the provided logo, colour, and text, if any
     """
     try:
+        tent_types = json.loads(tent_types)
         font_color = validate_color(text_color)
         text = ValencesText(
             front=front_text, left=left_text, back=back_text, right=right_text
@@ -178,6 +183,7 @@ async def create_mockups(
             text=text,
             add_ons=addons,
             output_dir=output_dir,
+            tent_types=tent_types
         )
 
         mockups = generate_mockups(overlay_data, logo_content)

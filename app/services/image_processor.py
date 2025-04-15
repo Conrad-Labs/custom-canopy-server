@@ -317,6 +317,13 @@ def filter_mockup_items(request_data: Dict[str, Any]) -> Dict[str, List[Dict]]:
         meets_include = all(
             matches_condition(data.get(k), v) for k, v in include_conditions.items()
         )
+        tent_type = include_conditions.get("tent_type")
+        if tent_type and "tent_types" in data:
+            meets_include = tent_type in data["tent_types"]
+        else:
+            meets_include = all(
+                matches_condition(data.get(k), v) for k, v in include_conditions.items()
+            )
         avoids_exclude = not any(
             True if data.get(k) is None else matches_condition(data.get(k), v)
             for k, v in exclude_conditions.items()
