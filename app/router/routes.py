@@ -2,7 +2,7 @@ import base64
 import json
 from typing import Optional
 
-from vercel_kv import KV
+from vercel_kv import KV, Opts
 import uuid
 import json
 
@@ -14,6 +14,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 kv = KV()
+opts = Opts(
+    ex=EXPIRY_TIME,
+    px=None,
+    exat=None,
+    pxat=None,
+    keepTtl=None
+)
 router = APIRouter()
 
 
@@ -142,7 +149,7 @@ async def create_mockups(
     """
     try:
         request_id = str(uuid.uuid4())
-        kv.set(f"{output_dir}:{request_id}", json.dumps({"status": "processing"}), ex=EXPIRY_TIME)
+        kv.set(f"{output_dir}:{request_id}", json.dumps({"status": "processing"}), opts)
         
         tent_types = json.loads(tent_types)
         font_color = validate_color(text_color)
@@ -201,9 +208,9 @@ async def create_mockups(
                 result = generate_mockups(overlay_data, logo_content)
                 payload = json.dumps({ "status": "ready", "mockups": result})
                 encoded_payload = base64.urlsafe_b64encode(payload.encode()).decode()
-                kv.set(f"{output_dir}:{request_id}", encoded_payload, ex=EXPIRY_TIME)
+                kv.set(f"{output_dir}:{request_id}", encoded_payload, opts)
             except Exception as e:
-                kv.set(f"{output_dir}:{request_id}", json.dumps({ "status": "error", "error": json.dumps(e)}), ex=EXPIRY_TIME)
+                kv.set(f"{output_dir}:{request_id}", json.dumps({ "status": "error", "error": json.dumps(e)}), opts)
 
         Thread(target=run_generation).start()
 
