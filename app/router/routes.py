@@ -9,7 +9,7 @@ import json
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.schema import OverlayRequest, TentSides, ValencesText, AddOns, Table
 from app.services.image_processor import generate_mockups
-from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_FONT_SIZE, DEFAULT_FONT_URL, DEFAULT_TENT_COLOR, DEFAULT_TEXT, DEFAULT_TENT_TYPES, EXPIRY_TIME
+from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_FONT_SIZE, DEFAULT_FONT_URL, DEFAULT_TENT_COLOR, DEFAULT_TEXT, DEFAULT_TENT_TYPES, DEFAULT_TENT_TYPES, EXPIRY_TIME
 from dotenv import load_dotenv
 
 load_dotenv()
