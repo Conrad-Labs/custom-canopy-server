@@ -9,7 +9,7 @@ import json
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.schema import OverlayRequest, TentSides, ValencesText, AddOns, Table
 from app.services.image_processor import generate_mockups
-from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_FONT_SIZE, DEFAULT_FONT_URL, DEFAULT_TENT_COLOR, DEFAULT_TEXT
+from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_FONT_SIZE, DEFAULT_FONT_URL, DEFAULT_TENT_COLOR, DEFAULT_TEXT, EXPIRY_TIME
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -142,7 +142,7 @@ async def create_mockups(
     """
     try:
         request_id = str(uuid.uuid4())
-        kv.set(f"{output_dir}:{request_id}", json.dumps({"status": "processing"}))
+        kv.set(f"{output_dir}:{request_id}", json.dumps({"status": "processing"}), ex=EXPIRY_TIME)
         
         tent_types = json.loads(tent_types)
         font_color = validate_color(text_color)
@@ -201,9 +201,9 @@ async def create_mockups(
                 result = generate_mockups(overlay_data, logo_content)
                 payload = json.dumps({ "status": "ready", "mockups": result})
                 encoded_payload = base64.urlsafe_b64encode(payload.encode()).decode()
-                kv.set(f"{output_dir}:{request_id}", encoded_payload)
+                kv.set(f"{output_dir}:{request_id}", encoded_payload, ex=EXPIRY_TIME)
             except Exception as e:
-                kv.set(f"{output_dir}:{request_id}", json.dumps({ "status": "error", "error": json.dumps(e)}))
+                kv.set(f"{output_dir}:{request_id}", json.dumps({ "status": "error", "error": json.dumps(e)}), ex=EXPIRY_TIME)
 
         Thread(target=run_generation).start()
 
