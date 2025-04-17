@@ -33,9 +33,7 @@ def validate_tent_types(tent_types: str):
     try:
         return json.loads(tent_types)
     except Exception as e:
-        print("Error parsing provided tent types: {e}")
-        return DEFAULT_TENT_TYPES
-    
+        print(f"Error parsing provided tent types: {e}")
 
 
 @router.post("/create-mockups", tags=["Mockup Creation"])
