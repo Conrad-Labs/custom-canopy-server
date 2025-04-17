@@ -21,6 +21,11 @@ MOCKUP_ITEMS = {
           "include_conditions": {"tent_type": "full-walls"}
         },
         {
+            "name": "full-walls-side",
+            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/full-walls-side-OpEbVowgREZP3iry6ACvQ4S6pexkD9.png",
+            "include_conditions": { "tent_type": "full-walls" }
+        },
+        {
             "name": "half-walls-side",
             "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/half-walls-side-dyzU1hP5nsEefl5IxHsOoOnbHhGXon.png",
             "include_conditions": {"tent_type": "half-walls"},
@@ -300,6 +305,69 @@ OVERLAY_CONFIGURATIONS = {
             "7": [(3779, 1807), (3867, 1872)],
             "8": [(3779, 2749), (3862, 2810)],
             "9": [(3778, 3260), (3866, 3322)]
+        },
+    },
+    "full-walls-side": {
+        "logos": {
+            "panels": {
+                "left": {
+                    "coordinates": [(706, 1832), (2198, 1868), (2197, 3298), (705, 3428)],
+                    "scale": 0.8,
+                },
+                "right": {
+                    "coordinates": [(2278, 1777), (3785, 1836), (3786, 3432), (2279, 3612)],
+                    "scale": 0.8,
+                },
+            },
+            "peaks": {
+                "left": {
+                    "coordinates": [(1881, 968), (2231, 917), (2204, 1255), (1123, 1350)],
+                    "scale": 1
+                },
+                "right": {
+                    "coordinates": [(2288, 928), (2622, 981), (3390, 1366), (2310, 1286)],
+                    "scale": 1
+                },
+            },
+            "valences": {
+                "text": {
+                    "front": {
+                        "coordinates": [(635, 1413), (2251, 1305), (2251, 1760), (635, 1810)],
+                        "scale": 0.9,
+                    },
+                    "right": {
+                        "coordinates": [(2251, 1305), (3868, 1413), (3867, 1811), (2251, 1760)],
+                        "scale": 0.9,
+                    },
+                },
+            },
+        },
+        "color-coordinates": {
+            "panels": {
+                "left": [(706, 1832), (2198, 1868), (2197, 3298), (705, 3428)],
+                "right": [(2278, 1777), (3785, 1836), (3786, 3432), (2279, 3612)],
+            },
+            "peaks": {
+                "front": [(2251, 748), (804, 1402), (2247, 1307)],
+                "right": [(2251, 748), (2248, 1305), (3657, 1398)],
+            },
+            "valences": {
+                "front": [(635, 1413), (2251, 1305), (2251, 1760), (635, 1810)],
+                "right": [(2251, 1305), (3868, 1413), (3867, 1811), (2251, 1760)],
+            },
+        },
+        "masks": {
+            "1": [(660, 2651), (713, 2713)],
+            "2": [(675, 3262), (713, 3321)],
+            "3": [(2192, 2605), (2218, 2654)],
+            "4": [(2192, 3168), (2218, 3217)],
+            "5": [(2242, 2842), (2286, 2903)],
+            "6": [(2249, 3450), (2287, 3513)],
+            "7": [(3779, 1807), (3867, 1872)],
+            "8": [(3779, 2749), (3862, 2810)],
+            "9": [(3778, 3260), (3866, 3322)],
+            "10": [(2257, 1774), (2287, 1815)],
+            "11": [(657, 1829), (713, 1871)]
         },
     },
     "wall-block": {
