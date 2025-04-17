@@ -4,6 +4,7 @@ DEFAULT_FONT_SIZE = 512
 DEFAULT_PADDING = 10
 DEFAULT_ROTATION_ANGLE = 0
 DEFAULT_FONT_COLOUR = [255, 255, 255]
+DEFAULT_TENT_TYPES = ["no-walls"]
 DEFAULT_TENT_COLOR = [0, 0, 0]
 BLUE_TENT_COLOR = [255, 233, 211]
 DEFAULT_FONT_URL = "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/fonts/GeliatExtralight-6YLRq-H5ccYOJVTzG6y1KwK6VRAVWQ8ZYKqQ.otf"

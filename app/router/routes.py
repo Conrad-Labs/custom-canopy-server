@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.schema import OverlayRequest, TentSides, ValencesText, AddOns, Table
 from app.services.image_processor import generate_mockups
-from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_FONT_SIZE, DEFAULT_FONT_URL, DEFAULT_TENT_COLOR, DEFAULT_TEXT
+from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_FONT_SIZE, DEFAULT_FONT_URL, DEFAULT_TENT_COLOR, DEFAULT_TEXT, DEFAULT_TENT_TYPES
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -28,6 +28,12 @@ def validate_color(color_str: str, optional=False):
         raise ValueError(
             "Color must be a list of three integers representing B, G, and R values."
         )
+        
+def validate_tent_types(tent_types: str):
+    try:
+        return json.loads(tent_types)
+    except Exception as e:
+        print(f"Error parsing provided tent types: {e}")
 
 
 @router.post("/create-mockups", tags=["Mockup Creation"])
@@ -126,11 +132,15 @@ async def create_mockups(
         example=f'"{DEFAULT_TENT_COLOR}"',
     ),
     output_dir: str = Form('"{DEFAULT_OUTPUT_DIR}"'),
+    tent_types: Optional[str] = Form(
+        description="The tent types which should be generated"
+    )
 ):
     """
     Create mockups for canopy layouts with the provided logo, colour, and text, if any
     """
     try:
+        tent_types = validate_tent_types(tent_types)
         font_color = validate_color(text_color)
         text = ValencesText(
             front=front_text, left=left_text, back=back_text, right=right_text
@@ -178,6 +188,7 @@ async def create_mockups(
             text=text,
             add_ons=addons,
             output_dir=output_dir,
+            tent_types=tent_types
         )
 
         mockups = generate_mockups(overlay_data, logo_content)
