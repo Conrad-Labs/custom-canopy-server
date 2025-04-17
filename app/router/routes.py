@@ -9,7 +9,7 @@ import json
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.schema import OverlayRequest, TentSides, ValencesText, AddOns, Table
 from app.services.image_processor import generate_mockups
-from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_FONT_SIZE, DEFAULT_FONT_URL, DEFAULT_TENT_COLOR, DEFAULT_TEXT, EXPIRY_TIME
+from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_FONT_SIZE, DEFAULT_FONT_URL, DEFAULT_TENT_COLOR, DEFAULT_TEXT, DEFAULT_TENT_TYPES, EXPIRY_TIME
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -41,6 +41,12 @@ def validate_color(color_str: str, optional=False):
         raise ValueError(
             "Color must be a list of three integers representing B, G, and R values."
         )
+        
+def validate_tent_types(tent_types: str):
+    try:
+        return json.loads(tent_types)
+    except Exception as e:
+        print(f"Error parsing provided tent types: {e}")
 
 
 @router.post("/create-mockups", tags=["Mockup Creation"])
@@ -140,7 +146,6 @@ async def create_mockups(
     ),
     output_dir: str = Form('"{DEFAULT_OUTPUT_DIR}"'),
     tent_types: Optional[str] = Form(
-        "['no-walls']",
         description="The tent types which should be generated"
     )
 ):
@@ -151,7 +156,7 @@ async def create_mockups(
         request_id = str(uuid.uuid4())
         kv.set(f"{output_dir}:{request_id}", json.dumps({"status": "processing"}), opts)
         
-        tent_types = json.loads(tent_types)
+        tent_types = validate_tent_types(tent_types)
         font_color = validate_color(text_color)
         text = ValencesText(
             front=front_text, left=left_text, back=back_text, right=right_text
@@ -210,7 +215,7 @@ async def create_mockups(
                 encoded_payload = base64.urlsafe_b64encode(payload.encode()).decode()
                 kv.set(f"{output_dir}:{request_id}", encoded_payload, opts)
             except Exception as e:
-                kv.set(f"{output_dir}:{request_id}", json.dumps({ "status": "error", "error": json.dumps(e)}), opts)
+                kv.set(f"{output_dir}:{request_id}", json.dumps({ "status": "error", "error": str(e)}), opts)
 
         Thread(target=run_generation).start()
 
