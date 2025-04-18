@@ -57,4 +57,4 @@ class OverlayRequest(BaseModel):
     text: ValencesText
     add_ons: Optional[AddOns] = None
     output_dir: Optional[str] = DEFAULT_OUTPUT_DIR
-    tent_types: Optional[List[str]] = DEFAULT_TENT_TYPES
+    tent_type: Optional[str] = DEFAULT_TENT_TYPES
