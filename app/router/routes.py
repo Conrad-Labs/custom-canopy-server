@@ -5,6 +5,7 @@ from typing import Optional
 from vercel_kv import KV, Opts
 import uuid
 import json
+import httpx
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.schema import OverlayRequest, TentSides, ValencesText, AddOns, Table
@@ -207,23 +208,43 @@ async def create_mockups(
             tent_types=tent_types
         )
         
-        from threading import Thread
-        def run_generation():
-            try:
-                result = generate_mockups(overlay_data, logo_content)
-                payload = json.dumps({ "status": "ready", "mockups": result})
-                encoded_payload = base64.urlsafe_b64encode(payload.encode()).decode()
-                kv.set(f"{output_dir}:{request_id}", encoded_payload, opts)
-            except Exception as e:
-                kv.set(f"{output_dir}:{request_id}", json.dumps({ "status": "error", "error": str(e)}), opts)
-
-        Thread(target=run_generation).start()
+        # Fire off background request
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                "http://localhost:8000/generate-mockups.background",  # Update this to your deployed URL in production
+                json={
+                    "overlay_data": overlay_data.model_dump(),
+                    "logo_content": base64.b64encode(logo_content).decode(),
+                    "output_dir": output_dir,
+                    "request_id": request_id
+                }
+            )
 
         return {"mockupRequestId": request_id}
 
     except Exception as e:
         print(e)
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/generate-mockups.background", tags=["Mockup Background"])
+async def generate_mockups_background(
+    payload: dict
+):
+    try:
+        overlay_data = OverlayRequest(**payload["overlay_data"])
+        logo_content = base64.b64decode(payload["logo_content"])
+        output_dir = payload["output_dir"]
+        request_id = payload["request_id"]
+
+        result = generate_mockups(overlay_data, logo_content)
+        encoded_payload = base64.urlsafe_b64encode(
+            json.dumps({ "status": "ready", "mockups": result }).encode()
+        ).decode()
+        kv.set(f"{output_dir}:{request_id}", encoded_payload, opts)
+        return {"status": "success"}
+    except Exception as e:
+        kv.set(f"{output_dir}:{request_id}", json.dumps({ "status": "error", "error": str(e)}), opts)
+        return {"status": "error", "error": str(e)}
 
 @router.get("/mockup-status", tags=["Mockup Creation"])
 async def get_mockup_status(request_id: str, output_dir: str):
