@@ -4,7 +4,6 @@ from typing import Optional
 
 import uuid
 import json
-import httpx
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.schema import OverlayRequest, TentSides, ValencesText, AddOns, Table
