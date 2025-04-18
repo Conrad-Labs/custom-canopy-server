@@ -1,6 +1,7 @@
 import base64
 import json
 from typing import Optional
+from app.config import settings
 
 from vercel_kv import KV, Opts
 import uuid
@@ -211,7 +212,7 @@ async def create_mockups(
         # Fire off background request
         async with httpx.AsyncClient() as client:
             await client.post(
-                "http://localhost:8000/generate-mockups.background",  # Update this to your deployed URL in production
+                f"{settings.CUSTOM_CANOPY_SERVER_URL}/generate-mockups.background",
                 json={
                     "overlay_data": overlay_data.model_dump(),
                     "logo_content": base64.b64encode(logo_content).decode(),
