@@ -1,8 +1,12 @@
-from pydantic import BaseSettings
-
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     BLOB_READ_WRITE_TOKEN: str
+    VERCEL_KV_REST_API_READ_ONLY_TOKEN: str
+    VERCEL_KV_REST_API_TOKEN: str
+    VERCEL_KV_REST_API_URL: str
+    VERCEL_KV_URL: str
+    
     DEFAULT_FONT_URL: str
 
     MOCKUP_TENT_HALF_WALLS_FRONT: str

@@ -1,4 +1,4 @@
-from config import settings
+from app.config import settings
 
 CONRAD_TEXT = "CONRAD LABS | CONRADLABS.COM"
 DEFAULT_TEXT = ""
