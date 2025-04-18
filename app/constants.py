@@ -1,3 +1,5 @@
+from config import settings
+
 CONRAD_TEXT = "CONRAD LABS | CONRADLABS.COM"
 DEFAULT_TEXT = ""
 DEFAULT_FONT_SIZE = 512
@@ -7,45 +9,45 @@ DEFAULT_FONT_COLOUR = [255, 255, 255]
 DEFAULT_TENT_TYPES = ["no-walls"]
 DEFAULT_TENT_COLOR = [0, 0, 0]
 BLUE_TENT_COLOR = [255, 233, 211]
-DEFAULT_FONT_URL = "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/fonts/GeliatExtralight-6YLRq-H5ccYOJVTzG6y1KwK6VRAVWQ8ZYKqQ.otf"
+DEFAULT_FONT_URL = settings.DEFAULT_FONT_URL
 DEFAULT_OUTPUT_DIR = "mockups"
 MOCKUP_ITEMS = {
     "tents": [
         {
             "name": "half-walls-front",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/half-walls-front-lkWLhrmmJ5RkG8nkEiV3mlDKinN099.png",
+            "url": settings.MOCKUP_TENT_HALF_WALLS_FRONT,
             "include_conditions": {"tent_type": "half-walls"},
         },
         {
-          "name": "full-walls-front",
-          "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/full-walls-front-AClRtynCRsbMp2oHF5EpagTMIT6XR9.png",
-          "include_conditions": {"tent_type": "full-walls"}
+            "name": "full-walls-front",
+            "url": settings.MOCKUP_TENT_FULL_WALLS_FRONT,
+            "include_conditions": {"tent_type": "full-walls"},
         },
         {
             "name": "full-walls-side",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/full-walls-side-OpEbVowgREZP3iry6ACvQ4S6pexkD9.png",
+            "url": settings.MOCKUP_TENT_FULL_WALLS_SIDE,
             "include_conditions": { "tent_type": "full-walls" }
         },
         {
             "name": "half-walls-side",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/half-walls-side-dyzU1hP5nsEefl5IxHsOoOnbHhGXon.png",
+            "url": settings.MOCKUP_TENT_HALF_WALLS_SIDE,
             "include_conditions": {"tent_type": "half-walls"},
         },
         {
             "name": "no-walls",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/no-walls-6PiBwvy77Bdo9LXWT6RAvoMKtETKHL.png",
+            "url": settings.MOCKUP_TENT_NO_WALLS,
             "include_conditions": {"tent_type": "no-walls"},
         },
         {
             "name": "top-view",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/canopy-mockups/top-view-nykA47xWcnyOSkN86zhAFyh8kwj1bO.png",
+            "url": settings.MOCKUP_TENT_TOP_VIEW,
             "include_conditions": {"tent_type": "all"},
         },
     ],
     "add_ons": [
         {
             "name": "table",
-            "url": "https://xyvvsdhvfprf3oqa.public.blob.vercel-storage.com/custom-canopy-server-static/images/add-ons/table-JQzC17ZdlVq31ZJsb8azUcs0E2Dfk6.png",
+            "url": settings.MOCKUP_ADD_ON_TABLE,
             "exclude_conditions": {"add_ons": {"table": None}},
         },
     ],
