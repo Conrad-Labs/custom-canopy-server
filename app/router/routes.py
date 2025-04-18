@@ -1,9 +1,7 @@
 import base64
 import json
 from typing import Optional
-from app.config import settings
 
-from vercel_kv import KV, Opts
 import uuid
 import json
 import httpx
@@ -11,18 +9,10 @@ import httpx
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.schema import OverlayRequest, TentSides, ValencesText, AddOns, Table
 from app.services.image_processor import generate_mockups
-from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_FONT_SIZE, DEFAULT_FONT_URL, DEFAULT_TENT_COLOR, DEFAULT_TEXT, DEFAULT_TENT_TYPES, DEFAULT_TENT_TYPES, EXPIRY_TIME
+from app.constants import DEFAULT_FONT_COLOUR, DEFAULT_FONT_SIZE, DEFAULT_FONT_URL, DEFAULT_TENT_COLOR, DEFAULT_TEXT, DEFAULT_TENT_TYPES, DEFAULT_TENT_TYPES
 from dotenv import load_dotenv
 
 load_dotenv()
-kv = KV()
-opts = Opts(
-    ex=EXPIRY_TIME,
-    px=None,
-    exat=None,
-    pxat=None,
-    keepTtl=None
-)
 router = APIRouter()
 
 
@@ -49,6 +39,7 @@ def validate_tent_types(tent_types: str):
         return json.loads(tent_types)
     except Exception as e:
         print(f"Error parsing provided tent types: {e}")
+        return DEFAULT_TENT_TYPES
 
 
 @router.post("/create-mockups", tags=["Mockup Creation"])
@@ -148,6 +139,7 @@ async def create_mockups(
     ),
     output_dir: str = Form('"{DEFAULT_OUTPUT_DIR}"'),
     tent_types: Optional[str] = Form(
+        "",
         description="The tent types which should be generated"
     )
 ):
@@ -155,9 +147,6 @@ async def create_mockups(
     Create mockups for canopy layouts with the provided logo, colour, and text, if any
     """
     try:
-        request_id = str(uuid.uuid4())
-        kv.set(f"{output_dir}:{request_id}", json.dumps({"status": "processing"}), opts)
-        
         tent_types = validate_tent_types(tent_types)
         font_color = validate_color(text_color)
         text = ValencesText(
@@ -208,52 +197,11 @@ async def create_mockups(
             output_dir=output_dir,
             tent_types=tent_types
         )
-        
-        # Fire off background request
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"{settings.CUSTOM_CANOPY_SERVER_URL}/generate-mockups.background",
-                json={
-                    "overlay_data": overlay_data.model_dump(),
-                    "logo_content": base64.b64encode(logo_content).decode(),
-                    "output_dir": output_dir,
-                    "request_id": request_id
-                }
-            )
 
-        return {"mockupRequestId": request_id}
+        mockups = generate_mockups(overlay_data, logo_content)
+        return mockups
+
 
     except Exception as e:
         print(e)
         raise HTTPException(status_code=400, detail=str(e))
-
-@router.post("/generate-mockups.background", tags=["Mockup Background"])
-async def generate_mockups_background(
-    payload: dict
-):
-    try:
-        overlay_data = OverlayRequest(**payload["overlay_data"])
-        logo_content = base64.b64decode(payload["logo_content"])
-        output_dir = payload["output_dir"]
-        request_id = payload["request_id"]
-
-        result = generate_mockups(overlay_data, logo_content)
-        encoded_payload = base64.urlsafe_b64encode(
-            json.dumps({ "status": "ready", "mockups": result }).encode()
-        ).decode()
-        kv.set(f"{output_dir}:{request_id}", encoded_payload, opts)
-        return {"status": "success"}
-    except Exception as e:
-        kv.set(f"{output_dir}:{request_id}", json.dumps({ "status": "error", "error": str(e)}), opts)
-        return {"status": "error", "error": str(e)}
-
-@router.get("/mockup-status", tags=["Mockup Creation"])
-async def get_mockup_status(request_id: str, output_dir: str):
-    result = kv.get(f"{output_dir}:{request_id}")
-    if not result:
-        raise HTTPException(status_code=404, detail="Invalid request ID")
-    if ("status" in result):
-        return json.loads(result)
-    else:
-        decoded = base64.urlsafe_b64decode(result).decode()
-        return json.loads(decoded)

@@ -17,8 +17,6 @@ class Settings(BaseSettings):
     MOCKUP_TENT_TOP_VIEW: str
 
     MOCKUP_ADD_ON_TABLE: str
-    
-    CUSTOM_CANOPY_SERVER_URL: str
 
     class Config:
         env_file = ".env"
